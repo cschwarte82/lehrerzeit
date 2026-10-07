@@ -1,0 +1,1020 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6b57">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} body{margin:0} [hidden]{display:none!important}</style>
+<title>Lehrerzeit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow column like a Klassenbuch page; tabs at the bottom on phones, on top on wider screens */
+:root {
+  --bg: #f3f5f2;
+  --surface: #ffffff;
+  --ink: #1d2a26;
+  --muted: #5b6b65;
+  --line: #d8dfdb;
+  --accent: #1f6b57;      /* Tafelgrün */
+  --accent-ink: #ffffff;
+  --chalk: #e9b949;       /* Kreidegelb, nur für den laufenden Timer */
+  --danger: #b4412f;
+  --good: #2f7d4f;
+  --c1: #1f6b57; --c2: #3f6fb0; --c3: #a5532d; --c4: #7a4fa0; --c5: #b3862a; --c6: #3f8f9a; --c7: #2b4f80; --c8: #b04a6e; --c9: #6b7a2a; --c10: #5a6470;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121916; --surface: #1a2420; --ink: #e6ece9; --muted: #9aaba4; --line: #2c3a35;
+  --accent: #4fb092; --accent-ink: #0d1613; --chalk: #f0c75e; --danger: #e07a66; --good: #6cc08a;
+  --c1: #4fb092; --c2: #7aa6e6; --c3: #e08d61; --c4: #b48ddb; --c5: #e0b95a; --c6: #6cc3cc; --c7: #a9c4ef; --c8: #e38aa8; --c9: #b5c46a; --c10: #a7b1bd;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #121916; --surface: #1a2420; --ink: #e6ece9; --muted: #9aaba4; --line: #2c3a35;
+  --accent: #4fb092; --accent-ink: #0d1613; --chalk: #f0c75e; --danger: #e07a66; --good: #6cc08a;
+  --c1: #4fb092; --c2: #7aa6e6; --c3: #e08d61; --c4: #b48ddb; --c5: #e0b95a; --c6: #6cc3cc; --c7: #a9c4ef; --c8: #e38aa8; --c9: #b5c46a; --c10: #a7b1bd;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.45; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+.app { max-width: 640px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 96px; display: flex; flex-direction: column; gap: 20px; }
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
+header.top .today { flex-basis: 100%; }
+header.top h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; margin: 0; letter-spacing: -0.01em; }
+header.top .today { color: var(--muted); font-size: .95rem; }
+
+nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+nav.tabs button { flex: 1; background: none; border: 0; padding: 12px 4px 14px; font-weight: 600; color: var(--muted); font-size: .95rem; }
+nav.tabs button[aria-selected="true"] { color: var(--accent); box-shadow: inset 0 3px 0 var(--accent); }
+@media (min-width: 720px) {
+  nav.tabs { position: static; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; padding: 0; }
+  nav.tabs button[aria-selected="true"] { box-shadow: inset 0 -3px 0 var(--accent); }
+  .app { padding-block: 24px 48px; }
+}
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; margin: 0; text-wrap: balance; }
+.label { font-size: .78rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+
+/* Timer */
+.clock { font-family: var(--font-num); font-size: clamp(2.6rem, 12vw, 3.6rem); line-height: 1; letter-spacing: -0.02em; }
+.timer.running .clock { color: var(--ink); }
+.timer .state { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); flex: none; }
+.timer.running .dot { background: var(--chalk); box-shadow: 0 0 0 4px color-mix(in srgb, var(--chalk) 30%, transparent); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--chalk) 10%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .timer.running .dot { animation: none; } }
+
+.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.chip { display: flex; align-items: center; gap: 8px; text-align: left; padding: 10px 12px; line-height: 1.2; min-height: 48px; padding-inline: 10px; hyphens: manual; min-width: 0; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-weight: 600; font-size: .95rem; }
+.chip .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.chip[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; align-self: flex-start; }
+.seg button { border: 0; background: var(--bg); padding: 8px 16px; font-weight: 600; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 140px; }
+input[type=text], input[type=date], input[type=time], select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); min-height: 44px; }
+
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 10px 16px; border-radius: 10px; font-weight: 600; min-height: 44px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.big { font-size: 1.15rem; padding: 16px; width: 100%; font-family: var(--font-display); font-weight: 700; letter-spacing: .01em; }
+.btn.stop { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 50%, var(--line)); }
+.btn.ghost { background: none; border-color: transparent; color: var(--accent); padding-inline: 8px; }
+.hint { color: var(--muted); font-size: .9rem; margin: 0; }
+
+/* Entry list */
+.day { display: flex; flex-direction: column; gap: 6px; }
+.day-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-top: 6px; }
+.day-head strong { font-family: var(--font-display); font-weight: 500; }
+.entry { display: grid; grid-template-columns: 4px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); text-align: left; width: 100%; }
+.entry .bar { align-self: stretch; border-radius: 2px; }
+.entry .main { min-width: 0; display: flex; flex-direction: column; }
+.entry .main span:first-child { font-weight: 600; }
+.entry .sub { color: var(--muted); font-size: .88rem; overflow-wrap: anywhere; }
+.entry .dur { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.entry:hover { border-color: var(--accent); }
+.badge { font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line); color: var(--muted); margin-left: 6px; vertical-align: 1px; }
+
+/* Summary */
+.periodnav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.periodnav .title { text-align: center; flex: 1; }
+.periodnav .title strong { font-family: var(--font-display); font-size: 1.15rem; font-weight: 500; display: block; }
+.periodnav .title span { color: var(--muted); font-size: .9rem; }
+.total { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.total .num { font-size: 2.2rem; }
+.split { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: .95rem; }
+.split b { color: var(--ink); font-family: var(--font-num); font-weight: 500; }
+.bars { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 6px; align-items: end; height: 150px; padding-top: 18px; }
+.bars .col { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; height: 100%; min-width: 0; }
+.bars .stack { width: 100%; max-width: 42px; display: flex; flex-direction: column-reverse; border-radius: 6px 6px 2px 2px; overflow: hidden; background: color-mix(in srgb, var(--line) 50%, transparent); min-height: 2px; }
+.bars .val { font-family: var(--font-num); font-size: .72rem; color: var(--muted); white-space: nowrap; }
+.bars .lbl { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.catlist { display: flex; flex-direction: column; gap: 8px; }
+.catrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; }
+.catrow .name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.catrow .track { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--line) 60%, transparent); overflow: hidden; }
+.catrow .track i { display: block; height: 100%; border-radius: 3px; }
+.weeks { width: 100%; border-collapse: collapse; font-size: .95rem; }
+.weeks td, .weeks th { white-space: nowrap; padding: 8px 4px; border-bottom: 1px solid var(--line); text-align: left; }
+.weeks td:last-child, .weeks th:last-child { text-align: right; }
+.weeks .range { display: block; font-size: .8rem; color: var(--muted); }
+.weeks th { font-size: .78rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+
+.empty { text-align: center; padding: 28px 12px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.empty p { margin: 0; color: var(--muted); max-width: 36ch; }
+
+/* Dialog */
+.overlay { position: fixed; inset: 0; z-index: 20; background: color-mix(in srgb, var(--ink) 45%, transparent); display: flex; align-items: flex-end; justify-content: center; padding: 16px; }
+@media (min-width: 560px) { .overlay { align-items: center; } }
+.sheet { background: var(--surface); border-radius: var(--radius); width: 100%; max-width: 480px; max-height: 100%; overflow: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
+.sheet .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; }
+.sheet .actions div { display: flex; gap: 8px; margin-left: auto; }
+.warn { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); color: var(--danger); padding: 10px 12px; border-radius: 10px; font-size: .92rem; margin: 0; }
+.headright { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.soll { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.soll > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--bg); min-width: 0; }
+.soll b { font-size: clamp(1.15rem, 5vw, 1.6rem); font-weight: 500; }
+.saldo.plus { color: var(--good); }
+.saldo.minus { color: var(--danger); }
+.offdays { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 14px; }
+.offdays .row { gap: 6px; }
+.daytoggle { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 8px; padding: 6px 10px; font-size: .88rem; font-weight: 600; min-height: 36px; }
+.daytoggle[aria-pressed="false"] span { text-decoration: line-through; }
+.daytoggle[aria-pressed="true"] { color: var(--ink); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.konto { display: flex; flex-direction: column; gap: 6px; }
+.track.big { height: 10px; border-radius: 5px; background: color-mix(in srgb, var(--line) 60%, transparent); overflow: hidden; }
+.track.big i { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
+.weekgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; }
+.wk { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 6px 4px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); font-size: .85rem; }
+.wk span { color: var(--muted); font-size: .75rem; font-family: var(--font-num); }
+.wk[aria-pressed="true"] { background: var(--chalk); border-color: var(--chalk); color: #1d2a26; }
+.wk[aria-pressed="true"] span { color: #1d2a26; }
+.daytoggle { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.15; }
+.daytoggle small { font-size: .7rem; font-weight: 600; text-decoration: none; display: block; color: var(--danger); }
+.reasons { display: flex; flex-direction: column; gap: 8px; }
+.reasons .chip { width: 100%; }
+.syncrow { display: flex; align-items: center; gap: 8px; }
+.syncdot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; }
+.syncdot.on { background: var(--good); }
+.syncdot.err { background: var(--danger); }
+.remind { border-color: var(--chalk); background: color-mix(in srgb, var(--chalk) 14%, var(--surface)); }
+.remind p { margin: 0; }
+.toast { position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; z-index: 30; font-weight: 600; max-width: calc(100% - 32px); }
+</style>
+
+<div class="app" lang="de">
+  <header class="top">
+    <h1>Lehrerzeit</h1>
+    <button class="btn ghost" id="openSettings">Einstellungen</button>
+    <span class="today" id="todayLabel"></span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-erfassen" aria-selected="true" data-view="erfassen">Erfassen</button>
+    <button role="tab" id="tab-eintraege" aria-selected="false" data-view="eintraege">Einträge</button>
+    <button role="tab" id="tab-auswertung" aria-selected="false" data-view="auswertung">Auswertung</button>
+  </nav>
+
+  <main id="view"></main>
+</div>
+<div id="modalRoot" lang="de"></div>
+
+<script>
+(() => {
+  const CATS = [
+    { id: 'unterricht', name: 'Unterricht', color: 'var(--c1)' },
+    { id: 'vorbereitung', name: 'Vor\u00ADbereitung', color: 'var(--c2)' },
+    { id: 'nachbereitung', name: 'Nach\u00ADbereitung', color: 'var(--c7)' },
+    { id: 'korrektur', name: 'Korrektur', color: 'var(--c3)' },
+    { id: 'konferenz', name: 'Konferenzen', color: 'var(--c4)' },
+    { id: 'eltern', name: 'Eltern\u00ADgespräche', color: 'var(--c5)' },
+    { id: 'austausch', name: 'Kollegialer Austausch', color: 'var(--c8)' },
+    { id: 'fortbildung', name: 'Fortbildung', color: 'var(--c9)' },
+    { id: 'schulentwicklung', name: 'Schul\u00ADentwicklung', color: 'var(--c10)' },
+    { id: 'fahrt', name: 'Klassen\u00ADfahrten', color: 'var(--c6)' },
+  ];
+  const PLACES = { schule: 'Schule', zuhause: 'Zuhause' };
+  const KEY = 'lehrerzeit.v1';
+  const catById = id => CATS.find(c => c.id === id) || CATS[0];
+
+  // ---------- Storage ----------
+  let state = { entries: [], running: null, lastCat: 'unterricht', lastPlace: 'schule' };
+  try { const raw = localStorage.getItem(KEY); if (raw) state = Object.assign(state, JSON.parse(raw)); } catch (e) {}
+  // Jeder geänderte Eintrag bekommt einen Zeitstempel u (für den Abgleich zwischen Geräten)
+  const bodyOf = e => { const { u, ...rest } = e; return JSON.stringify(rest); };
+  let savedBodies = new Map(state.entries.map(e => [e.id, bodyOf(e)]));
+  function save() {
+    const now = Date.now(), next = new Map();
+    for (const e of state.entries) { const b = bodyOf(e); if (savedBodies.get(e.id) !== b) e.u = now; next.set(e.id, b); }
+    savedBodies = next;
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    try { scheduleSync(); } catch (e) { /* Abgleich noch nicht initialisiert */ }
+  }
+  // Ferienwochen NRW (Wochen mit mindestens drei Ferientagen, Montag als Schlüssel)
+  const HOLIDAY_PRESETS = {
+    'nrw-2026-27': { label: 'NRW 2026/27', weeks: ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-10-19', '2026-10-26', '2026-12-21', '2026-12-28', '2027-03-22', '2027-03-29', '2027-07-19', '2027-07-26'] },
+  };
+  function applyPreset(id) {
+    state.holidayWeeks = state.holidayWeeks || {};
+    for (const w of HOLIDAY_PRESETS[id].weeks) state.holidayWeeks[w] = true;
+    state.presets = Object.assign({}, state.presets, { [id]: true });
+    save();
+  }
+  if (!(state.presets && state.presets['nrw-2026-27'])) applyPreset('nrw-2026-27');
+
+  // ---------- Date helpers ----------
+  const DAY = 86400000;
+  const pad = n => String(n).padStart(2, '0');
+  const startOfDay = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const addDays = (t, n) => { const d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); };
+  const startOfWeek = t => { const d = new Date(startOfDay(t)); const wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return d.getTime(); };
+  const isoWeek = t => {
+    const d = new Date(startOfDay(t)); d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+    const w1 = new Date(d.getFullYear(), 0, 4);
+    return { week: 1 + Math.round(((d - w1) / DAY - 3 + (w1.getDay() + 6) % 7) / 7), year: d.getFullYear() };
+  };
+  const fmtDur = ms => { const m = Math.round(ms / 60000); return `${Math.floor(m / 60)}:${pad(m % 60)}`; };
+  const fmtClock = ms => { const s = Math.floor(ms / 1000); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`; };
+  const fmtTime = t => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const fmtDateInput = t => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  const fmtDay = t => { const d = new Date(t); return `${WD[d.getDay()]}, ${d.getDate()}. ${MONTHS[d.getMonth()]}`; };
+  const fmtShort = t => { const d = new Date(t); return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.`; };
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  // Duration of an entry that falls inside [from, to)
+  const overlap = (e, from, to) => Math.max(0, Math.min(e.end, to) - Math.max(e.start, from));
+  function allEntries() {
+    const list = state.entries.slice();
+    if (state.running) list.push({ ...state.running, id: 'running', end: Date.now(), live: true });
+    return list;
+  }
+  function sumRange(from, to) {
+    const byCat = {}, byPlace = { schule: 0, zuhause: 0 }; let total = 0;
+    for (const e of allEntries()) {
+      const d = overlap(e, from, to); if (!d) continue;
+      total += d; byCat[e.cat] = (byCat[e.cat] || 0) + d; byPlace[e.place] = (byPlace[e.place] || 0) + d;
+    }
+    return { total, byCat, byPlace };
+  }
+
+  // ---------- UI state ----------
+  let view = 'erfassen';
+  let weekAnchor = startOfWeek(Date.now());
+  let monthAnchor = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); })();
+  let period = 'woche';
+  let yearAnchor = Date.now();
+  let sel = { cat: state.lastCat, place: state.lastPlace, note: '' };
+  const $view = document.getElementById('view');
+  const $modal = document.getElementById('modalRoot');
+
+  function toast(msg) {
+    document.querySelectorAll('.toast').forEach(x => x.remove());
+    const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status');
+    document.body.appendChild(t); setTimeout(() => t.remove(), 2200);
+  }
+
+  // ---------- Timer actions ----------
+  function startTimer() {
+    state.running = { cat: sel.cat, place: sel.place, note: sel.note.trim(), start: Date.now() };
+    state.lastCat = sel.cat; state.lastPlace = sel.place; save(); render();
+  }
+  function stopTimer(silent) {
+    const r = state.running; if (!r) return;
+    const end = Date.now();
+    if (end - r.start >= 60000) { state.entries.push({ id: uid(), cat: r.cat, place: r.place, note: r.note, start: r.start, end }); if (!silent) toast(`Gespeichert: ${catById(r.cat).name}, ${fmtDur(end - r.start)} h`); }
+    else if (!silent) toast('Unter einer Minute, nicht gespeichert');
+    state.running = null; sel.note = ''; save(); render();
+  }
+  function switchTo(cat) {
+    stopTimer(true); sel.cat = cat; startTimer(); toast(`Gewechselt zu ${catById(cat).name}`);
+  }
+
+  // ---------- Views ----------
+  function chipsHTML(active, attr) {
+    return `<div class="chips">${CATS.map(c => `<button class="chip" ${attr}="${c.id}" aria-pressed="${c.id === active}"><span class="sw" style="background:${c.color}"></span>${c.name}</button>`).join('')}</div>`;
+  }
+  function placeHTML(active, attr) {
+    return `<div class="seg" role="group" aria-label="Ort">${Object.entries(PLACES).map(([k, v]) => `<button ${attr}="${k}" aria-pressed="${k === active}">${v}</button>`).join('')}</div>`;
+  }
+
+  function renderErfassen() {
+    const r = state.running;
+    const today = startOfDay(Date.now());
+    const todaySum = sumRange(today, today + DAY).total;
+    const ws = startOfWeek(Date.now());
+    const weekSum = sumRange(ws, ws + 7 * DAY).total;
+    let html = `<section class="panel timer ${r ? 'running' : ''}">`;
+    if (r) {
+      const c = catById(r.cat);
+      html += `<div class="state"><span class="dot"></span><span>Läuft seit ${fmtTime(r.start)} · ${c.name} · ${PLACES[r.place]}</span></div>
+        <div class="clock" id="clock">${fmtClock(Date.now() - r.start)}</div>
+        ${r.note ? `<p class="hint">${esc(r.note)}</p>` : ''}
+        <button class="btn big stop" id="stopBtn">Stopp</button>
+        <span class="label">Direkt wechseln zu</span>
+        ${chipsHTML(r.cat, 'data-switch')}`;
+    } else {
+      html += `<div class="state"><span class="dot"></span><span>Keine Zeit läuft</span></div>
+        <div class="clock">00:00:00</div>
+        <span class="label">Tätigkeit</span>
+        ${chipsHTML(sel.cat, 'data-cat')}
+        <span class="label">Ort</span>
+        ${placeHTML(sel.place, 'data-place')}
+        <div class="field"><label class="label" for="noteIn">Notiz (optional)</label><input type="text" id="noteIn" placeholder="z. B. 9b Mathe, Klausur Q1" value="${esc(sel.note)}"></div>
+        <button class="btn big primary" id="startBtn">Start</button>`;
+    }
+    html += `</section>
+      <section class="panel">
+        <div class="split"><span>Heute <b id="sumToday">${fmtDur(todaySum)} h</b></span><span>Diese Woche <b id="sumWeek">${fmtDur(weekSum)} h</b></span></div>
+        <button class="btn" id="addBtn">Zeit nachtragen</button>
+      </section>`;
+    if (backupDue()) html += `<section class="panel remind"><p><b>Zeit für eine Sicherung.</b> Deine Daten liegen nur auf diesem Gerät. Speichere ab und zu eine Sicherungsdatei, zum Beispiel in deinen Mails oder deiner Cloud.</p>
+      <div class="row"><button class="btn primary" id="remSave">Sicherung speichern</button><button class="btn ghost" id="remLater">Später</button></div></section>`;
+    const todays = state.entries.filter(e => e.start >= today).sort((a, b) => b.start - a.start);
+    if (todays.length) html += `<section class="day"><div class="day-head"><strong>Heute erfasst</strong><span class="hint">Antippen zum Korrigieren</span></div>${todays.map(entryHTML).join('')}</section>`;
+    $view.innerHTML = html;
+
+    $view.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { sel.cat = b.dataset.cat; render(); });
+    $view.querySelectorAll('[data-place]').forEach(b => b.onclick = () => { sel.place = b.dataset.place; render(); });
+    $view.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => { if (b.dataset.switch !== r.cat) switchTo(b.dataset.switch); });
+    const note = document.getElementById('noteIn'); if (note) note.oninput = () => sel.note = note.value;
+    const sb = document.getElementById('startBtn'); if (sb) sb.onclick = startTimer;
+    const st = document.getElementById('stopBtn'); if (st) st.onclick = () => stopTimer(false);
+    document.getElementById('addBtn').onclick = () => openEditor(null);
+    const rs = document.getElementById('remSave'); if (rs) rs.onclick = saveBackup;
+    const rl = document.getElementById('remLater'); if (rl) rl.onclick = () => { state.lastBackup = Date.now() - 23 * DAY; save(); render(); };
+    bindEntries();
+  }
+
+  function entryHTML(e) {
+    const c = catById(e.cat);
+    return `<button class="entry" data-entry="${e.id}"><span class="bar" style="background:${c.color}"></span>
+      <span class="main"><span>${c.name}<span class="badge">${PLACES[e.place]}</span></span>
+      <span class="sub">${fmtTime(e.start)}–${fmtTime(e.end)}${e.note ? ' · ' + esc(e.note) : ''}</span></span>
+      <span class="dur">${fmtDur(e.end - e.start)}</span></button>`;
+  }
+  function bindEntries() {
+    $view.querySelectorAll('[data-entry]').forEach(b => b.onclick = () => openEditor(state.entries.find(e => e.id === b.dataset.entry)));
+  }
+
+  function renderEintraege() {
+    const sorted = state.entries.slice().sort((a, b) => b.start - a.start);
+    if (!sorted.length) { $view.innerHTML = emptyHTML() + devicesPanelHTML(); bindEmpty(); bindDevicesPanel(); return; }
+    const groups = new Map();
+    for (const e of sorted) { const k = startOfDay(e.start); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
+    let html = `<div class="row" style="justify-content:space-between"><h2>Alle Einträge</h2><button class="btn" id="addBtn">Zeit nachtragen</button></div>`;
+    for (const [k, list] of groups) {
+      const tot = list.reduce((s, e) => s + e.end - e.start, 0);
+      html += `<section class="day"><div class="day-head"><strong>${fmtDay(k)}</strong><span class="num">${fmtDur(tot)} h</span></div>${list.map(entryHTML).join('')}</section>`;
+    }
+    html += devicesPanelHTML();
+    html += `<button class="btn ghost" id="wipeBtn" style="align-self:center">Alle Daten löschen</button>`;
+    $view.innerHTML = html;
+    bindDevicesPanel();
+    document.getElementById('addBtn').onclick = () => openEditor(null);
+    document.getElementById('wipeBtn').onclick = openWipe;
+    bindEntries();
+  }
+
+  function emptyHTML() {
+    return `<section class="panel empty"><h2>Noch keine Zeiten erfasst</h2>
+      <p>Starte den Timer unter „Erfassen“ oder trage eine Zeit nach. Zum Ausprobieren kannst du eine Beispielwoche laden und später wieder löschen.</p>
+      <div class="row" style="justify-content:center"><button class="btn primary" id="goErfassen">Zeit erfassen</button><button class="btn" id="demoBtn">Beispielwoche laden</button></div></section>`;
+  }
+  function bindEmpty() {
+    document.getElementById('goErfassen').onclick = () => setView('erfassen');
+    document.getElementById('demoBtn').onclick = loadDemo;
+  }
+
+  function catListHTML(byCat, total) {
+    const max = Math.max(1, ...Object.values(byCat));
+    return `<div class="catlist">${CATS.filter(c => byCat[c.id]).sort((a, b) => byCat[b.id] - byCat[a.id]).map(c => `
+      <div class="catrow"><span class="name"><span class="sw" style="width:10px;height:10px;border-radius:3px;background:${c.color}"></span>${c.name}</span>
+      <span class="num">${fmtDur(byCat[c.id])} h <span class="hint">${Math.round(byCat[c.id] / total * 100)} %</span></span>
+      <span class="track"><i style="width:${byCat[c.id] / max * 100}%;background:${c.color}"></i></span></div>`).join('')}</div>`;
+  }
+  function barsHTML(cols) {
+    const max = Math.max(3600000, ...cols.map(c => c.total));
+    return `<div class="bars" style="--n:${cols.length}">${cols.map(col => `
+      <div class="col"><span class="val">${col.total ? fmtDur(col.total) : ''}</span>
+      <div class="stack" style="height:${col.total / max * 100}%">${CATS.filter(c => col.byCat[c.id]).map(c => `<i style="display:block;background:${c.color};height:${col.byCat[c.id] / col.total * 100}%"></i>`).join('')}</div>
+      <span class="lbl">${col.label}</span></div>`).join('')}</div>`;
+  }
+
+  // ---------- Soll (Jahresarbeitszeit, verteilt auf Unterrichtswochen) ----------
+  const SETTINGS_DEFAULT = { yearly: 1886, weeks: 40, pct: 100, since: null, yearStart: '08-01' };
+  const settings = () => { const s = Object.assign({}, SETTINGS_DEFAULT, state.settings || {}); delete s.weekly; return s; };
+  const keyOf = t => fmtDateInput(t);
+  const sinceTs = () => {
+    const st = settings();
+    if (st.since) { const [y, m, d] = st.since.split('-').map(Number); return new Date(y, m - 1, d).getTime(); }
+    const first = state.entries.reduce((a, e) => Math.min(a, e.start), Infinity);
+    return startOfDay(isFinite(first) ? first : Date.now());
+  };
+  const weeklySoll = () => { const st = settings(); return st.yearly * st.pct / 100 / st.weeks * 3600000; };
+  const dailySoll = () => weeklySoll() / 5;
+  const OFF_REASONS = { bft: 'Beweglicher Ferientag', feiertag: 'Feiertag', krank: 'Krank', urlaub: 'Sonderurlaub', frei: 'Frei' };
+  const offReason = t => { const v = state.offDays && state.offDays[keyOf(t)]; return v ? (OFF_REASONS[v] ? v : 'frei') : null; };
+  const isOff = t => !!offReason(t);
+  const isHoliday = t => !!(state.holidayWeeks && state.holidayWeeks[keyOf(startOfWeek(t))]);
+  function schoolYearStart(t) {
+    const [m, d] = settings().yearStart.split('-').map(Number);
+    const y = new Date(t).getFullYear();
+    const s = new Date(y, m - 1, d).getTime();
+    return s > t ? new Date(y - 1, m - 1, d).getTime() : s;
+  }
+  const schoolYearEnd = s => { const d = new Date(s); return new Date(d.getFullYear() + 1, d.getMonth(), d.getDate()).getTime(); };
+  const schoolYearLabel = s => { const y = new Date(s).getFullYear(); return `${y}/${String(y + 1).slice(2)}`; };
+  // Soll für [from, to): Mo–Fr in Unterrichtswochen, ab Erfassungsbeginn, bis einschließlich heute, ohne freie Tage
+  function sollRange(from, to) {
+    const today = startOfDay(Date.now()), since = sinceTs();
+    let n = 0;
+    for (let d = startOfDay(from); d < to; d = addDays(d, 1)) {
+      const wd = new Date(d).getDay();
+      if (wd === 0 || wd === 6 || d < since || d > today || isOff(d) || isHoliday(d)) continue;
+      n++;
+    }
+    return n * dailySoll();
+  }
+  const fmtSigned = ms => (ms >= 0 ? '+' : '−') + fmtDur(Math.abs(ms));
+  const fmtNum = (n, dig = 2) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: dig });
+  function sollHTML(ist, from, to) {
+    const soll = sollRange(from, to), diff = ist - soll;
+    const future = addDays(startOfDay(Date.now()), 1) < to;
+    return `<div class="soll">
+      <div><span class="label">Ist</span><b class="num">${fmtDur(ist)}</b></div>
+      <div><span class="label">${future ? 'Soll bis heute' : 'Soll'}</span><b class="num">${fmtDur(soll)}</b></div>
+      <div><span class="label">Saldo</span><b class="num saldo ${diff >= 0 ? 'plus' : 'minus'}">${fmtSigned(diff)}</b></div>
+    </div>`;
+  }
+  function toggleHoliday(mondayKey) {
+    state.holidayWeeks = state.holidayWeeks || {};
+    state.holidayWeeks[mondayKey] = !state.holidayWeeks[mondayKey];
+    save(); render();
+  }
+
+  function renderAuswertung() {
+    if (!state.entries.length && !state.running) { $view.innerHTML = emptyHTML(); bindEmpty(); return; }
+    let html = `<div class="seg" role="group" aria-label="Zeitraum" style="align-self:center">
+      <button data-period="woche" aria-pressed="${period === 'woche'}">Woche</button><button data-period="monat" aria-pressed="${period === 'monat'}">Monat</button><button data-period="jahr" aria-pressed="${period === 'jahr'}">Schuljahr</button></div>`;
+    let from, to, label, yearWeeks = [];
+    if (period === 'woche') {
+      from = weekAnchor; to = addDays(from, 7);
+      const { week, year } = isoWeek(from);
+      label = `KW${pad(week)}-${year}`;
+      const s = sumRange(from, to);
+      const hol = isHoliday(from);
+      const cols = [];
+      for (let i = 0; i < 7; i++) { const d = addDays(from, i); const x = sumRange(d, addDays(d, 1)); cols.push({ label: WD[new Date(d).getDay()], ...x }); }
+      const days = [0, 1, 2, 3, 4].map(i => addDays(from, i));
+      html += `<section class="panel">
+        <div class="periodnav"><button class="btn" data-nav="-1" aria-label="Vorige Woche">‹</button>
+          <div class="title"><strong>KW ${week} · ${year}</strong><span>${fmtShort(from)} – ${fmtShort(addDays(to, -1))}${hol ? ' · Ferienwoche' : ''}</span></div>
+          <button class="btn" data-nav="1" aria-label="Nächste Woche">›</button></div>
+        ${sollHTML(s.total, from, to)}
+        <div class="split"><span>Schule <b>${fmtDur(s.byPlace.schule)} h</b></span><span>Zuhause <b>${fmtDur(s.byPlace.zuhause)} h</b></span></div>
+        ${barsHTML(cols)}
+        <div class="offdays">
+          <div class="seg" role="group" aria-label="Art der Woche"><button data-hw="0" aria-pressed="${!hol}">Unterrichtswoche</button><button data-hw="1" aria-pressed="${hol}">Ferienwoche</button></div>
+          ${hol ? `<p class="hint">Ferienwochen haben kein Soll. Was du hier arbeitest, zählt trotzdem für dein Jahreskonto.</p>` : `
+          <span class="label">Arbeitstage mit Soll</span>
+          <div class="row">${days.map(d => `<button class="daytoggle" data-off="${keyOf(d)}" aria-pressed="${!isOff(d)}"><span>${WD[new Date(d).getDay()]} ${fmtShort(d)}</span>${isOff(d) ? `<small>${OFF_REASONS[offReason(d)]}</small>` : ''}</button>`).join('')}</div>
+          <p class="hint">Tag antippen, um ihn als frei zu kennzeichnen (z. B. beweglicher Ferientag, Feiertag, krank). Freie Tage zählen nicht zum Soll.</p>`}
+        </div>
+      </section>`;
+      if (s.total) html += `<section class="panel"><h2>Nach Tätigkeit</h2>${catListHTML(s.byCat, s.total)}</section>`;
+    } else if (period === 'monat') {
+      const m = new Date(monthAnchor); from = monthAnchor; to = new Date(m.getFullYear(), m.getMonth() + 1, 1).getTime();
+      label = `${m.getFullYear()}-${pad(m.getMonth() + 1)}`;
+      const s = sumRange(from, to);
+      const rows = [];
+      for (let w = startOfWeek(from); w < to; w = addDays(w, 7)) {
+        const a = Math.max(w, from), b = Math.min(addDays(w, 7), to);
+        rows.push({ kw: isoWeek(w).week, a, b, hol: isHoliday(w), ...sumRange(a, b), soll: sollRange(a, b) });
+      }
+      html += `<section class="panel">
+        <div class="periodnav"><button class="btn" data-nav="-1" aria-label="Voriger Monat">‹</button>
+          <div class="title"><strong>${MONTHS[m.getMonth()]} ${m.getFullYear()}</strong><span>${rows.length} Kalenderwochen</span></div>
+          <button class="btn" data-nav="1" aria-label="Nächster Monat">›</button></div>
+        ${sollHTML(s.total, from, to)}
+        <div class="split"><span>Schule <b>${fmtDur(s.byPlace.schule)} h</b></span><span>Zuhause <b>${fmtDur(s.byPlace.zuhause)} h</b></span></div>
+        <div style="overflow-x:auto"><table class="weeks"><thead><tr><th>Woche</th><th>Ist</th><th>Soll</th><th>Saldo</th></tr></thead><tbody>
+        ${rows.map(r => `<tr><td>KW ${r.kw}<span class="range">${fmtShort(r.a)}–${fmtShort(addDays(r.b, -1))}${r.hol ? ' · Ferien' : ''}</span></td><td class="num">${fmtDur(r.total)}</td><td class="num">${fmtDur(r.soll)}</td><td class="num saldo ${r.total - r.soll >= 0 ? 'plus' : 'minus'}">${r.soll || r.total ? fmtSigned(r.total - r.soll) : ''}</td></tr>`).join('')}
+        </tbody></table></div>
+      </section>`;
+      if (s.total) html += `<section class="panel"><h2>Nach Tätigkeit</h2>${catListHTML(s.byCat, s.total)}</section>`;
+    } else {
+      const st = settings();
+      from = schoolYearStart(yearAnchor); to = schoolYearEnd(from);
+      label = `Schuljahr-${schoolYearLabel(from).replace('/', '-')}`;
+      const s = sumRange(from, to);
+      const yearSoll = st.yearly * st.pct / 100 * 3600000;
+      const today = startOfDay(Date.now());
+      // Wochen des Schuljahres (nach Montag)
+      const weeks = [];
+      for (let w = startOfWeek(from) < from ? addDays(startOfWeek(from), 7) : from; w < to; w = addDays(w, 7)) weeks.push(w);
+      yearWeeks = weeks;
+      const holCount = weeks.filter(isHoliday).length;
+      const teachCount = weeks.length - holCount;
+      const teachSoFar = weeks.filter(w => !isHoliday(w) && w <= today && addDays(w, 7) > sinceTs()).length;
+      let holWork = 0;
+      for (const w of weeks) if (isHoliday(w)) holWork += sumRange(Math.max(w, from), Math.min(addDays(w, 7), to)).total;
+      const pctDone = Math.min(100, s.total / yearSoll * 100);
+      const months = [];
+      for (let mm = new Date(from); mm.getTime() < to; mm = new Date(mm.getFullYear(), mm.getMonth() + 1, 1)) {
+        const a = mm.getTime(), b = new Date(mm.getFullYear(), mm.getMonth() + 1, 1).getTime();
+        months.push({ name: MONTHS[mm.getMonth()], a, ...sumRange(a, b), soll: sollRange(a, b) });
+      }
+      html += `<section class="panel">
+        <div class="periodnav"><button class="btn" data-nav="-1" aria-label="Voriges Schuljahr">‹</button>
+          <div class="title"><strong>Schuljahr ${schoolYearLabel(from)}</strong><span>${fmtShort(from)}${new Date(from).getFullYear()} – ${fmtShort(addDays(to, -1))}${new Date(addDays(to, -1)).getFullYear()}</span></div>
+          <button class="btn" data-nav="1" aria-label="Nächstes Schuljahr">›</button></div>
+        <div class="konto">
+          <div class="total"><span class="num">${fmtDur(s.total)}</span><span class="hint">von ${fmtNum(yearSoll / 3600000)} h Jahressoll</span></div>
+          <div class="track big"><i style="width:${pctDone}%"></i></div>
+          <span class="hint">${fmtNum(pctDone, 1)} % erreicht · noch ${fmtDur(Math.max(0, yearSoll - s.total))} h offen</span>
+        </div>
+        ${sollHTML(s.total, from, to)}
+        <div class="split"><span>Unterrichtswochen bisher <b>${teachSoFar} von ${fmtNum(st.weeks)}</b></span><span>Arbeit in Ferienwochen <b>${fmtDur(holWork)} h</b></span></div>
+        <div style="overflow-x:auto"><table class="weeks"><thead><tr><th>Monat</th><th>Ist</th><th>Soll</th><th>Saldo</th></tr></thead><tbody>
+        ${months.map(r => `<tr><td>${r.name}</td><td class="num">${fmtDur(r.total)}</td><td class="num">${fmtDur(r.soll)}</td><td class="num saldo ${r.total - r.soll >= 0 ? 'plus' : 'minus'}">${r.soll || r.total ? fmtSigned(r.total - r.soll) : ''}</td></tr>`).join('')}
+        </tbody></table></div>
+      </section>
+      <section class="panel">
+        <h2>Ferienwochen festlegen</h2>
+        <p class="hint">Tippe die Wochen an, in denen Ferien sind. Sie haben kein Soll. Markiert: ${holCount} Ferienwochen, bleiben ${teachCount} Unterrichtswochen.${teachCount !== st.weeks ? ` Für ${fmtNum(st.weeks)} Unterrichtswochen sollten ${weeks.length - st.weeks} Wochen markiert sein.` : ''}</p>
+        <div class="row"><button class="btn" id="presetNRW">NRW-Ferien 2026/27 eintragen</button><button class="btn ghost" id="clearHol">Alle Markierungen entfernen</button></div>
+        <div class="weekgrid">${weeks.map(w => `<button class="wk" data-hwk="${keyOf(w)}" aria-pressed="${isHoliday(w)}"><b>KW ${isoWeek(w).week}</b><span>${fmtShort(w)}</span></button>`).join('')}</div>
+      </section>`;
+      if (s.total) html += `<section class="panel"><h2>Nach Tätigkeit</h2>${catListHTML(s.byCat, s.total)}</section>`;
+    }
+    const st = settings();
+    html += `<section class="panel">
+      <h2>Excel-Export</h2>
+      <p class="hint">Enthält alle Einträge, Wochensummen mit Soll und Saldo sowie die Summen nach Tätigkeit.</p>
+      <div class="row"><button class="btn primary" id="xlsPeriod">${period === 'woche' ? 'Diese Woche' : period === 'monat' ? 'Diesen Monat' : 'Dieses Schuljahr'} exportieren</button><button class="btn" id="xlsAll">Alles exportieren</button></div>
+      <div class="row" style="justify-content:space-between"><p class="hint" style="flex:1 1 200px">Soll: ${fmtNum(st.yearly)} h im Jahr${st.pct !== 100 ? ` bei ${fmtNum(st.pct)} %` : ''} auf ${fmtNum(st.weeks)} Unterrichtswochen, also ${fmtNum(weeklySoll() / 3600000)} h pro Unterrichtswoche (${fmtDur(dailySoll())} h pro Tag).</p><button class="btn ghost" id="openSettings2">Soll ändern</button></div>
+    </section>`;
+    $view.innerHTML = html;
+    $view.querySelectorAll('[data-period]').forEach(b => b.onclick = () => { period = b.dataset.period; render(); });
+    $view.querySelectorAll('[data-nav]').forEach(b => b.onclick = () => {
+      const n = +b.dataset.nav;
+      if (period === 'woche') weekAnchor = addDays(weekAnchor, 7 * n);
+      else if (period === 'monat') { const d = new Date(monthAnchor); monthAnchor = new Date(d.getFullYear(), d.getMonth() + n, 1).getTime(); }
+      else { const d = new Date(schoolYearStart(yearAnchor)); yearAnchor = new Date(d.getFullYear() + n, d.getMonth(), d.getDate()).getTime(); }
+      render();
+    });
+    $view.querySelectorAll('[data-off]').forEach(b => b.onclick = () => openOffDay(b.dataset.off));
+    $view.querySelectorAll('[data-hw]').forEach(b => b.onclick = () => { if ((b.dataset.hw === '1') !== isHoliday(from)) toggleHoliday(keyOf(from)); });
+    $view.querySelectorAll('[data-hwk]').forEach(b => b.onclick = () => toggleHoliday(b.dataset.hwk));
+    const pn = document.getElementById('presetNRW'); if (pn) pn.onclick = () => { applyPreset('nrw-2026-27'); render(); toast('NRW-Ferien eingetragen'); };
+    const ch = document.getElementById('clearHol'); if (ch) ch.onclick = () => { state.holidayWeeks = state.holidayWeeks || {}; for (const w of yearWeeks) if (state.holidayWeeks[keyOf(w)]) state.holidayWeeks[keyOf(w)] = false; save(); render(); toast('Markierungen in diesem Schuljahr entfernt'); };
+    document.getElementById('xlsPeriod').onclick = () => exportExcel(from, to, label);
+    document.getElementById('xlsAll').onclick = () => {
+      const first = state.entries.reduce((a, e) => Math.min(a, e.start), Infinity);
+      const last = state.entries.reduce((a, e) => Math.max(a, e.end), Date.now());
+      exportExcel(startOfWeek(isFinite(first) ? first : Date.now()), addDays(startOfWeek(last), 7), 'gesamt');
+    };
+    document.getElementById('openSettings2').onclick = openSettings;
+  }
+
+  function openOffDay(key) {
+    const [y, m, d] = key.split('-').map(Number), t = new Date(y, m - 1, d).getTime();
+    const cur = offReason(t);
+    $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="odTitle">
+      <h2 id="odTitle">${fmtDay(t)}</h2>
+      <p class="hint">Ein freier Tag zählt nicht zum Soll. Gearbeitete Zeit an diesem Tag zählt trotzdem.</p>
+      <div class="reasons">
+        <button class="chip" data-reason="" aria-pressed="${!cur}">Arbeitstag mit Soll</button>
+        ${Object.entries(OFF_REASONS).map(([k, v]) => `<button class="chip" data-reason="${k}" aria-pressed="${cur === k}">${v}</button>`).join('')}
+      </div>
+      <div class="actions"><div><button class="btn" id="odCancel">Abbrechen</button></div></div>
+    </div></div>`;
+    $modal.querySelectorAll('[data-reason]').forEach(b => b.onclick = () => {
+      state.offDays = state.offDays || {};
+      state.offDays[key] = b.dataset.reason || false;
+      save(); close(); render();
+      toast(b.dataset.reason ? `${fmtDay(t)}: ${OFF_REASONS[b.dataset.reason]}` : `${fmtDay(t)} zählt wieder zum Soll`);
+    });
+    document.getElementById('odCancel').onclick = close;
+    document.getElementById('ov').onclick = ev => { if (ev.target.id === 'ov') close(); };
+  }
+
+  // ---------- Einstellungen ----------
+  function openSettings() {
+    const st = settings();
+    const [ym, yd] = st.yearStart.split('-');
+    $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="stTitle">
+      <h2 id="stTitle">Einstellungen</h2>
+      <div class="row">
+        <div class="field"><label class="label" for="stYearly">Jahressoll (Stunden)</label>
+          <input type="text" inputmode="decimal" id="stYearly" value="${fmtNum(st.yearly)}"></div>
+        <div class="field"><label class="label" for="stWeeks">Unterrichtswochen</label>
+          <input type="text" inputmode="decimal" id="stWeeks" value="${fmtNum(st.weeks)}"></div>
+      </div>
+      <div class="field"><label class="label" for="stPct">Beschäftigungsumfang (%)</label>
+        <input type="text" inputmode="decimal" id="stPct" value="${fmtNum(st.pct)}">
+        <span class="hint">Bei Teilzeit: deine Unterrichtsstunden geteilt durch das volle Deputat, z. B. 20 von 25,5 = 78 %.</span></div>
+      <div class="row">
+        <div class="field"><label class="label" for="stYearStart">Schuljahr beginnt am</label>
+          <input type="text" inputmode="numeric" id="stYearStart" value="${yd}.${ym}." placeholder="01.08."></div>
+        <div class="field"><label class="label" for="stSince">Soll zählt ab</label>
+          <input type="date" id="stSince" value="${st.since || keyOf(sinceTs())}"></div>
+      </div>
+      <p class="hint">Tage vor „Soll zählt ab“ erzeugen keine Minusstunden.</p>
+      <p class="hint" id="stPreview"></p>
+      <p class="warn" id="stErr" hidden></p>
+      <div class="actions"><div><button class="btn" id="stCancel">Abbrechen</button><button class="btn primary" id="stSave">Speichern</button></div></div>
+    </div></div>`;
+    const num = id => parseFloat(document.getElementById(id).value.replace(/\./g, '').replace(',', '.'));
+    const preview = () => {
+      const y = num('stYearly'), w = num('stWeeks'), p = num('stPct');
+      document.getElementById('stPreview').textContent = (y > 0 && w > 0 && p > 0) ? `Ergibt ${fmtNum(y * p / 100 / w)} h pro Unterrichtswoche, ${fmtDur(y * p / 100 / w / 5 * 3600000)} h pro Tag (Mo–Fr).` : '';
+    };
+    ['stYearly', 'stWeeks', 'stPct'].forEach(id => document.getElementById(id).oninput = preview); preview();
+    document.getElementById('stCancel').onclick = close;
+    document.getElementById('ov').onclick = ev => { if (ev.target.id === 'ov') close(); };
+    document.getElementById('stSave').onclick = () => {
+      const y = num('stYearly'), w = num('stWeeks'), p = num('stPct'), since = document.getElementById('stSince').value;
+      const ys = document.getElementById('stYearStart').value.match(/^\s*(\d{1,2})\.(\d{1,2})\.?\s*$/);
+      const err = document.getElementById('stErr');
+      const fail = msg => { err.textContent = msg; err.hidden = false; };
+      if (!(y > 0 && y <= 3000)) return fail('Bitte ein Jahressoll zwischen 1 und 3000 Stunden eingeben.');
+      if (!(w >= 1 && w <= 52)) return fail('Bitte zwischen 1 und 52 Unterrichtswochen eingeben.');
+      if (!(p > 0 && p <= 100)) return fail('Bitte einen Umfang zwischen 1 und 100 % eingeben.');
+      if (!ys || +ys[1] < 1 || +ys[1] > 31 || +ys[2] < 1 || +ys[2] > 12) return fail('Bitte den Schuljahresbeginn als Tag.Monat eingeben, z. B. 01.08.');
+      state.settings = { yearly: y, weeks: w, pct: p, since: since || null, yearStart: `${pad(+ys[2])}-${pad(+ys[1])}` };
+      save(); close(); render(); toast('Einstellungen gespeichert');
+    };
+  }
+
+  // ---------- Excel ----------
+  const downloadsP = (window.claude && typeof window.claude.use === 'function') ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+  function loadXLSX() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    return new Promise((res, rej) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      sc.onload = () => res(window.XLSX); sc.onerror = () => rej(new Error('load'));
+      document.head.appendChild(sc);
+    });
+  }
+  const plain = s => s.replace(/­/g, '');
+  const xlDate = t => { const d = new Date(t); return (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / DAY; };
+  const xlTime = t => { const d = new Date(t); return (d.getHours() * 60 + d.getMinutes()) / 1440; };
+  const hrs = ms => Math.round(ms / 36000) / 100;
+
+  async function exportExcel(from, to, label) {
+    let X;
+    try { X = await loadXLSX(); } catch (e) { toast('Excel-Modul nicht geladen. Bitte Internetverbindung prüfen.'); return; }
+    const st = settings();
+    const entries = state.entries.filter(e => e.end > from && e.start < to).sort((a, b) => a.start - b.start);
+    function sheet(aoa, formats, widths) {
+      const ws = X.utils.aoa_to_sheet(aoa);
+      for (let r = 1; r < aoa.length; r++) for (const [c, z] of Object.entries(formats)) {
+        const ref = X.utils.encode_cell({ r, c: +c }); if (ws[ref] && ws[ref].t === 'n') ws[ref].z = z;
+      }
+      ws['!cols'] = widths.map(w => ({ wch: w }));
+      return ws;
+    }
+    const wb = X.utils.book_new();
+
+    // Übersicht
+    const s = sumRange(from, to), soll = sollRange(from, to);
+    X.utils.book_append_sheet(wb, sheet([
+      ['Arbeitszeitnachweis', ''],
+      ['Zeitraum', `${fmtShort(from)}${new Date(from).getFullYear()} – ${fmtShort(addDays(to, -1))}${new Date(addDays(to, -1)).getFullYear()}`],
+      ['Ist (Stunden)', hrs(s.total)],
+      ['davon Schule', hrs(s.byPlace.schule)],
+      ['davon Zuhause', hrs(s.byPlace.zuhause)],
+      ['Soll (Stunden)', hrs(soll)],
+      ['Saldo (Stunden)', hrs(s.total - soll)],
+      ['Jahressoll (Stunden)', st.yearly],
+      ['Unterrichtswochen', st.weeks],
+      ['Soll pro Unterrichtswoche', hrs(weeklySoll())],
+      ['Beschäftigungsumfang (%)', st.pct],
+      ['Erstellt am', `${fmtShort(Date.now())}${new Date().getFullYear()} ${fmtTime(Date.now())}`],
+    ], { 1: '0.00' }, [28, 26]), 'Übersicht');
+
+    // Einträge
+    const rows = [['Datum', 'Tag', 'KW', 'Beginn', 'Ende', 'Dauer', 'Stunden', 'Tätigkeit', 'Ort', 'Notiz']];
+    for (const e of entries) rows.push([xlDate(e.start), WD[new Date(e.start).getDay()], isoWeek(e.start).week, xlTime(e.start), xlTime(e.end), (e.end - e.start) / DAY, hrs(e.end - e.start), plain(catById(e.cat).name), PLACES[e.place], e.note || '']);
+    X.utils.book_append_sheet(wb, sheet(rows, { 0: 'dd\\.mm\\.yyyy', 3: 'hh:mm', 4: 'hh:mm', 5: '[h]:mm', 6: '0.00' }, [12, 5, 5, 8, 8, 8, 9, 22, 10, 40]), 'Einträge');
+
+    // Wochen
+    const wk = [['KW', 'Von', 'Bis', 'Art', 'Ist', 'Soll', 'Saldo', 'Schule', 'Zuhause', ...CATS.map(c => plain(c.name))]];
+    for (let w = startOfWeek(from); w < to; w = addDays(w, 7)) {
+      const a = Math.max(w, from), b = Math.min(addDays(w, 7), to), x = sumRange(a, b), so = sollRange(a, b);
+      wk.push([isoWeek(w).week, xlDate(a), xlDate(addDays(b, -1)), isHoliday(w) ? 'Ferien' : 'Unterricht', hrs(x.total), hrs(so), hrs(x.total - so), hrs(x.byPlace.schule), hrs(x.byPlace.zuhause), ...CATS.map(c => hrs(x.byCat[c.id] || 0))]);
+    }
+    const wf = { 1: 'dd\\.mm\\.yyyy', 2: 'dd\\.mm\\.yyyy' }; for (let c = 4; c < wk[0].length; c++) wf[c] = '0.00'; wf[6] = '+0.00;-0.00;0.00';
+    X.utils.book_append_sheet(wb, sheet(wk, wf, [5, 11, 11, 10, 8, 8, 8, 8, 8, ...CATS.map(c => Math.max(9, plain(c.name).length + 1))]), 'Wochen');
+
+    // Tätigkeiten
+    const per = {}; for (const c of CATS) per[c.id] = { schule: 0, zuhause: 0 };
+    for (const e of entries) per[e.cat][e.place] += overlap(e, from, to);
+    const tt = [['Tätigkeit', 'Schule', 'Zuhause', 'Gesamt', 'Anteil']];
+    for (const c of CATS) { const g = per[c.id].schule + per[c.id].zuhause; tt.push([plain(c.name), hrs(per[c.id].schule), hrs(per[c.id].zuhause), hrs(g), s.total ? g / s.total : 0]); }
+    tt.push(['Summe', hrs(s.byPlace.schule), hrs(s.byPlace.zuhause), hrs(s.total), s.total ? 1 : 0]);
+    X.utils.book_append_sheet(wb, sheet(tt, { 1: '0.00', 2: '0.00', 3: '0.00', 4: '0%' }, [22, 9, 9, 9, 8]), 'Tätigkeiten');
+
+    // Freie Tage und Ferienwochen
+    const fd = [['Datum', 'Tag', 'KW', 'Art']];
+    for (let d = startOfDay(from); d < to; d = addDays(d, 1)) {
+      const wd = new Date(d).getDay(); if (wd === 0 || wd === 6) continue;
+      if (isHoliday(d)) { if (wd === 1) fd.push([xlDate(d), 'Mo–Fr', isoWeek(d).week, 'Ferienwoche']); }
+      else if (isOff(d)) fd.push([xlDate(d), WD[wd], isoWeek(d).week, OFF_REASONS[offReason(d)]]);
+    }
+    X.utils.book_append_sheet(wb, sheet(fd, { 0: 'dd\\.mm\\.yyyy' }, [12, 7, 5, 24]), 'Freie Tage');
+
+    const buf = X.write(wb, { bookType: 'xlsx', type: 'array' });
+    await saveFile(`Arbeitszeit_${label}.xlsx`, new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  }
+
+  async function saveFile(name, blob, okMsg = 'Excel-Datei gespeichert') {
+    const dl = await downloadsP;
+    if (dl) {
+      try { await dl.save({ filename: name, data: blob }); toast(okMsg); }
+      catch (e) { if (e && e.code !== 'declined') toast(e.code === 'rate_limited' ? 'Bitte kurz warten und erneut versuchen' : 'Speichern ist hier gerade nicht möglich'); }
+      return;
+    }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast(okMsg);
+  }
+
+  // ---------- Editor ----------
+  function openEditor(entry) {
+    const isNew = !entry;
+    const now = Date.now();
+    const e = entry ? { ...entry } : { cat: sel.cat, place: sel.place, note: '', start: now - 3600000, end: now };
+    let cat = e.cat, place = e.place, confirmDel = false;
+    function draw(err) {
+      $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="edTitle">
+        <h2 id="edTitle">${isNew ? 'Zeit nachtragen' : 'Eintrag korrigieren'}</h2>
+        <span class="label">Tätigkeit</span>${chipsHTML(cat, 'data-ecat')}
+        <span class="label">Ort</span>${placeHTML(place, 'data-eplace')}
+        <div class="row">
+          <div class="field"><label class="label" for="edDate">Datum</label><input type="date" id="edDate" value="${fmtDateInput(e.start)}"></div>
+          <div class="field" style="flex-basis:100px"><label class="label" for="edFrom">Von</label><input type="time" id="edFrom" value="${fmtTime(e.start)}"></div>
+          <div class="field" style="flex-basis:100px"><label class="label" for="edTo">Bis</label><input type="time" id="edTo" value="${fmtTime(e.end)}"></div>
+        </div>
+        <div class="field"><label class="label" for="edNote">Notiz</label><input type="text" id="edNote" value="${esc(e.note)}"></div>
+        ${err ? `<p class="warn">${err}</p>` : ''}
+        ${confirmDel ? `<p class="warn">Diesen Eintrag wirklich löschen? Das lässt sich nicht rückgängig machen.</p>` : ''}
+        <div class="actions">
+          ${isNew ? '' : confirmDel ? `<button class="btn danger" id="edDelYes">Ja, löschen</button>` : `<button class="btn danger" id="edDel">Löschen</button>`}
+          <div><button class="btn" id="edCancel">Abbrechen</button><button class="btn primary" id="edSave">Speichern</button></div>
+        </div></div></div>`;
+      const keep = () => { e.note = document.getElementById('edNote').value; const d = document.getElementById('edDate').value, f = document.getElementById('edFrom').value, t = document.getElementById('edTo').value; e._d = d; e._f = f; e._t = t; };
+      $modal.querySelectorAll('[data-ecat]').forEach(b => b.onclick = () => { keep(); cat = b.dataset.ecat; redraw(); });
+      $modal.querySelectorAll('[data-eplace]').forEach(b => b.onclick = () => { keep(); place = b.dataset.eplace; redraw(); });
+      document.getElementById('edCancel').onclick = close;
+      document.getElementById('ov').onclick = ev => { if (ev.target.id === 'ov') close(); };
+      const del = document.getElementById('edDel'); if (del) del.onclick = () => { keep(); confirmDel = true; redraw(); };
+      const yes = document.getElementById('edDelYes'); if (yes) yes.onclick = () => { state.entries = state.entries.filter(x => x.id !== entry.id); save(); close(); render(); toast('Eintrag gelöscht'); };
+      document.getElementById('edSave').onclick = () => {
+        const d = document.getElementById('edDate').value, f = document.getElementById('edFrom').value, t = document.getElementById('edTo').value;
+        if (!d || !f || !t) return draw('Bitte Datum, Beginn und Ende ausfüllen.');
+        const [y, mo, da] = d.split('-').map(Number), [fh, fm] = f.split(':').map(Number), [th, tm] = t.split(':').map(Number);
+        const start = new Date(y, mo - 1, da, fh, fm).getTime();
+        let end = new Date(y, mo - 1, da, th, tm).getTime();
+        if (end <= start) end += DAY; // über Mitternacht
+        if (end - start > 16 * 3600000) return draw('Ein Eintrag darf höchstens 16 Stunden lang sein. Bitte Beginn und Ende prüfen.');
+        const rec = { cat, place, note: document.getElementById('edNote').value.trim(), start, end };
+        if (isNew) state.entries.push({ id: uid(), ...rec }); else Object.assign(entry, rec);
+        save(); close(); render(); toast(isNew ? 'Zeit nachgetragen' : 'Änderung gespeichert');
+      };
+      if (e._d) { document.getElementById('edDate').value = e._d; document.getElementById('edFrom').value = e._f; document.getElementById('edTo').value = e._t; }
+    }
+    const redraw = () => draw();
+    draw();
+  }
+  function close() { $modal.innerHTML = ''; }
+  function openWipe() {
+    $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true">
+      <h2>Alle Daten löschen?</h2><p class="warn">Alle ${state.entries.length} Einträge werden ${sync.status === 'on' ? 'auf allen Geräten' : 'von diesem Gerät'} entfernt. Das lässt sich nicht rückgängig machen.</p>
+      <div class="actions"><div><button class="btn" id="wNo">Abbrechen</button><button class="btn danger" id="wYes">Alles löschen</button></div></div></div></div>`;
+    document.getElementById('wNo').onclick = close;
+    document.getElementById('wYes').onclick = () => { state.entries = []; state.running = null; save(); close(); render(); toast('Alle Daten gelöscht'); };
+  }
+
+  // ---------- Demo data ----------
+  function loadDemo() {
+    const ws = startOfWeek(Date.now()) - 7 * DAY; // letzte Woche, damit nichts mit heute kollidiert
+    const at = (day, h, m) => { const d = new Date(addDays(ws, day)); d.setHours(h, m, 0, 0); return d.getTime(); };
+    const plan = [
+      [0, 7, 45, 13, 5, 'unterricht', 'schule', '6 Stunden'], [0, 15, 0, 17, 30, 'vorbereitung', 'zuhause', ''],
+      [1, 7, 45, 12, 15, 'unterricht', 'schule', ''], [1, 14, 30, 16, 0, 'konferenz', 'schule', 'Fachkonferenz Deutsch'], [1, 19, 0, 21, 0, 'korrektur', 'zuhause', 'Klassenarbeit 7a'],
+      [2, 7, 45, 13, 5, 'unterricht', 'schule', ''], [2, 13, 15, 13, 45, 'eltern', 'schule', ''], [2, 16, 0, 18, 0, 'vorbereitung', 'zuhause', ''],
+      [3, 7, 45, 11, 20, 'unterricht', 'schule', ''], [3, 15, 0, 18, 30, 'korrektur', 'zuhause', 'Klassenarbeit 7a'],
+      [4, 7, 45, 12, 15, 'unterricht', 'schule', ''], [4, 14, 0, 15, 30, 'vorbereitung', 'zuhause', ''],
+      [6, 10, 0, 12, 30, 'vorbereitung', 'zuhause', 'Unterrichtsreihe Lyrik'],
+    ];
+    for (const [d, h1, m1, h2, m2, cat, place, note] of plan) state.entries.push({ id: uid(), cat, place, note: note + (note ? ' ' : '') + '(Beispiel)', start: at(d, h1, m1), end: at(d, h2, m2) });
+    weekAnchor = ws; save(); setView('auswertung'); toast('Beispielwoche geladen (letzte Woche)');
+  }
+
+  // ---------- Shell ----------
+  function setView(v) {
+    view = v;
+    document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.view === v));
+    render(); window.scrollTo(0, 0);
+  }
+  function render() {
+    const d = new Date(); const { week } = isoWeek(d);
+    document.getElementById('todayLabel').textContent = `${fmtDay(d)} · KW ${week}`;
+    if (view === 'erfassen') renderErfassen(); else if (view === 'eintraege') renderEintraege(); else renderAuswertung();
+  }
+  document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => setView(b.dataset.view));
+  document.getElementById('openSettings').onclick = openSettings;
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+
+  // ---------- Abgleich zwischen Geräten (nur in claude.ai, private Daten des angemeldeten Nutzers) ----------
+  // Ablage: data/users/<id>/meta (Einstellungen, Ferien, laufender Timer) und data/users/<id>/m-JJJJ-MM (Einträge des Monats).
+  // Gelöschte Einträge bleiben als {deleted:true} stehen, damit andere Geräte sie ebenfalls entfernen.
+  const META_KEYS = ['settings', 'offDays', 'holidayWeeks', 'presets', 'running', 'lastCat', 'lastPlace'];
+  const metaOf = () => { const m = {}; for (const k of META_KEYS) m[k] = state[k] === undefined ? null : state[k]; return m; };
+  const canon = v => v === null || typeof v !== 'object' ? JSON.stringify(v) : Array.isArray(v) ? '[' + v.map(canon).join(',') + ']' : '{' + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
+  const monthKey = t => { const d = new Date(t); return `m-${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
+  let sync = { status: 'off', db: null, base: null, docs: new Set(), synced: new Map(), syncedMeta: null, ready: false, timer: null, busy: false, again: false, last: 0 };
+  const syncLabel = () => ({ off: 'Nur auf diesem Gerät gespeichert', connecting: 'Abgleich wird verbunden …', on: 'Abgleich aktiv: Handy und Laptop zeigen dieselben Daten', err: 'Abgleich gerade nicht möglich, Daten bleiben auf diesem Gerät' })[sync.status];
+  function setSyncStatus(st) { sync.status = st; const el = document.getElementById('syncInfo'); if (el) { el.textContent = syncLabel(); el.previousElementSibling.className = 'syncdot ' + (st === 'on' ? 'on' : st === 'err' ? 'err' : ''); } }
+
+  function scheduleSync() { if (!sync.db || !sync.ready) return; clearTimeout(sync.timer); sync.timer = setTimeout(pushDiff, 400); }
+  async function pushDiff() {
+    if (!sync.db) return;
+    if (sync.busy) { sync.again = true; return; }
+    sync.busy = true;
+    try {
+      // Einträge je Monat sammeln
+      const byMonth = {};
+      const local = new Map(state.entries.map(e => [e.id, e]));
+      for (const e of state.entries) { const j = canon(e); if (sync.synced.get(e.id) !== j) (byMonth[monthKey(e.start)] = byMonth[monthKey(e.start)] || {})[e.id] = { e, j }; }
+      for (const [id, j] of sync.synced) if (!local.has(id) && j !== 'deleted') { let mk; try { mk = monthKey(JSON.parse(j).start); } catch (x) { continue; } (byMonth[mk] = byMonth[mk] || {})[id] = { e: { deleted: true, u: Date.now() }, j: 'deleted' }; }
+      for (const [mk, items] of Object.entries(byMonth)) {
+        const payload = {}; for (const [id, it] of Object.entries(items)) payload[id] = it.e;
+        const ref = sync.db.doc(sync.base + '/' + mk);
+        if (sync.docs.has(mk)) await ref.update({ entries: payload }); else { await ref.set({ entries: payload }); sync.docs.add(mk); }
+        for (const [id, it] of Object.entries(items)) sync.synced.set(id, it.j);
+      }
+      const mj = canon(metaOf());
+      if (mj !== sync.syncedMeta) {
+        await sync.db.doc(sync.base + '/meta').set({ ...metaOf(), u: Date.now() });
+        sync.syncedMeta = mj; sync.docs.add('meta');
+      }
+      if (sync.status !== 'on') setSyncStatus('on');
+    } catch (e) {
+      setSyncStatus('err');
+      if (e && e.code === 'quota_exceeded') toast('Speicherplatz für den Abgleich ist voll.');
+    } finally {
+      sync.busy = false;
+      if (sync.again) { sync.again = false; scheduleSync(); }
+    }
+  }
+  function applyRemote(snap) {
+    const remote = new Map(); let meta = null; const docs = new Set();
+    for (const d of snap.docs) {
+      docs.add(d.id);
+      const body = d.data() || {};
+      if (d.id === 'meta') meta = body;
+      else if (d.id.startsWith('m-') && body.entries) for (const [id, e] of Object.entries(body.entries)) remote.set(id, e);
+    }
+    sync.docs = docs;
+    const local = new Map(state.entries.map(e => [e.id, e]));
+    let changed = false;
+    for (const [id, re] of remote) {
+      const rj = re.deleted ? 'deleted' : canon({ ...re, id });
+      const known = sync.synced.get(id);
+      const le = local.get(id);
+      if (re.deleted) {
+        if (le && (!le.u || le.u <= re.u || known !== canon(le))) { local.delete(id); changed = true; }
+      } else if (!le) {
+        // fehlt lokal: neu von woanders, oder hier gelöscht und noch nicht hochgeladen
+        if (known !== rj) { local.set(id, { ...re, id }); changed = true; }
+      } else {
+        const lj = canon(le);
+        if (lj !== rj) {
+          const remoteChanged = known !== rj, localChanged = known !== lj;
+          if (remoteChanged && (!localChanged || (re.u || 0) >= (le.u || 0))) { local.set(id, { ...re, id }); changed = true; }
+        }
+      }
+      sync.synced.set(id, rj);
+    }
+    if (changed) {
+      state.entries = [...local.values()];
+      savedBodies = new Map(state.entries.map(e => [e.id, bodyOf(e)]));
+    }
+    if (meta) {
+      const rm = {}; for (const k of META_KEYS) rm[k] = meta[k] === undefined ? null : meta[k];
+      const rmj = canon(rm), lmj = canon(metaOf());
+      if (rmj !== lmj && (sync.syncedMeta === null ? true : rmj !== sync.syncedMeta)) {
+        for (const k of META_KEYS) state[k] = rm[k] === null ? (k === 'running' ? null : state[k]) : rm[k];
+        if (rm.running === null) state.running = null;
+        changed = true;
+      }
+      sync.syncedMeta = rmj;
+    }
+    if (changed) {
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+      if (!$modal.innerHTML) render();
+    }
+    sync.ready = true;
+    if (sync.status !== 'on') setSyncStatus('on');
+    scheduleSync();
+  }
+  (async function startSync() {
+    if (!(window.claude && typeof window.claude.use === 'function')) return;
+    setSyncStatus('connecting');
+    try {
+      const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+      const id = user && await user.id();
+      if (!db || !id) { setSyncStatus('off'); return; }
+      sync.db = db; sync.base = 'data/users/' + id;
+      db.collection(sync.base).onSnapshot(applyRemote, () => setSyncStatus('err'));
+    } catch (e) { setSyncStatus('err'); }
+  })();
+
+  // ---------- Datensicherung als Datei ----------
+  function backupData() { return JSON.stringify({ app: 'lehrerzeit', version: 1, exportedAt: new Date().toISOString(), ...state }, null, 1); }
+  function importBackup(text) {
+    let data; try { data = JSON.parse(text); } catch (e) { toast('Die Datei ist keine Lehrerzeit-Sicherung.'); return; }
+    if (!data || data.app !== 'lehrerzeit' || !Array.isArray(data.entries)) { toast('Die Datei ist keine Lehrerzeit-Sicherung.'); return; }
+    const local = new Map(state.entries.map(e => [e.id, e])); let added = 0, updated = 0;
+    for (const e of data.entries) {
+      if (!e || !e.id || !e.start || !e.end) continue;
+      const le = local.get(e.id);
+      if (!le) { local.set(e.id, e); added++; } else if ((e.u || 0) > (le.u || 0)) { local.set(e.id, e); updated++; }
+    }
+    state.entries = [...local.values()];
+    for (const k of ['offDays', 'holidayWeeks']) if (data[k]) state[k] = Object.assign({}, data[k], state[k] || {});
+    if (data.settings && !state.settings) state.settings = data.settings;
+    savedBodies = new Map(state.entries.map(e => [e.id, bodyOf(e)]));
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    scheduleSync(); render();
+    toast(`${added} Einträge übernommen${updated ? `, ${updated} aktualisiert` : ''}`);
+  }
+  function saveBackup() {
+    state.lastBackup = Date.now(); save();
+    saveFile(`Lehrerzeit-Sicherung_${fmtDateInput(Date.now())}.json`, new Blob([backupData()], { type: 'application/json' }), 'Sicherung gespeichert');
+    if (view === 'erfassen') render();
+  }
+  // Erinnerung nur ohne Abgleich: alle 30 Tage, sobald es echte Einträge gibt
+  function backupDue() {
+    if (sync.status === 'on' || sync.status === 'connecting' || state.entries.length < 5) return false;
+    const first = state.entries.reduce((a, e) => Math.min(a, e.start), Infinity);
+    return Date.now() - Math.max(state.lastBackup || 0, first) > 30 * DAY;
+  }
+  function devicesPanelHTML() {
+    return `<section class="panel">
+      <h2>Geräte und Sicherung</h2>
+      <div class="syncrow"><span class="syncdot ${sync.status === 'on' ? 'on' : sync.status === 'err' ? 'err' : ''}"></span><span class="hint" id="syncInfo">${syncLabel()}</span></div>
+      <p class="hint">Mit einer Sicherungsdatei kannst du deine Daten aufbewahren oder auf ein anderes Gerät übertragen. Beim Einlesen werden Einträge ergänzt, nichts wird gelöscht.</p>
+      <div class="row"><button class="btn" id="bkSave">Sicherung speichern</button><label class="btn" for="bkFile" style="display:inline-flex;align-items:center">Sicherung einlesen</label><input type="file" id="bkFile" accept=".json,application/json" hidden></div>
+    </section>`;
+  }
+  function bindDevicesPanel() {
+    const b = document.getElementById('bkSave'); if (!b) return;
+    b.onclick = saveBackup;
+    document.getElementById('bkFile').onchange = ev => { const f = ev.target.files[0]; if (!f) return; f.text().then(importBackup); ev.target.value = ''; };
+  }
+
+  // Live clock
+  setInterval(() => {
+    if (!state.running) return;
+    const c = document.getElementById('clock'); if (c) c.textContent = fmtClock(Date.now() - state.running.start);
+    if (view === 'erfassen' && Date.now() % 60000 < 1000) {
+      const t = startOfDay(Date.now()), ws = startOfWeek(Date.now());
+      const a = document.getElementById('sumToday'), b = document.getElementById('sumWeek');
+      if (a) a.textContent = fmtDur(sumRange(t, t + DAY).total) + ' h';
+      if (b) b.textContent = fmtDur(sumRange(ws, ws + 7 * DAY).total) + ' h';
+    }
+  }, 1000);
+  // Andere Tabs/Fenster: Änderungen übernehmen
+  window.addEventListener('storage', ev => { if (ev.key === KEY) { try { state = Object.assign(state, JSON.parse(ev.newValue)); } catch (e) {} render(); } });
+
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && document.querySelector('link[rel=manifest]')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  render();
+})();
+</script>
+</html>
