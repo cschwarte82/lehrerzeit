@@ -215,6 +215,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   ];
   const PLACES = { schule: 'Schule', zuhause: 'Zuhause' };
   const KEY = 'lehrerzeit.v1';
+  const inClaude = !!(window.claude && typeof window.claude.use === 'function');
   const catById = id => CATS.find(c => c.id === id) || CATS[0];
 
   // ---------- Storage ----------
@@ -300,6 +301,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   function startTimer() {
     state.running = { cat: sel.cat, place: sel.place, note: sel.note.trim(), start: Date.now() };
     state.lastCat = sel.cat; state.lastPlace = sel.place; save(); render();
+    if (storageSafe === false) protectStorage();
   }
   function stopTimer(silent) {
     const r = state.running; if (!r) return;
@@ -350,10 +352,13 @@ input::-webkit-date-and-time-value { text-align: left; }
         <div class="split"><span>Heute <b id="sumToday">${fmtDur(todaySum)} h</b></span><span>Diese Woche <b id="sumWeek">${fmtDur(weekSum)} h</b></span></div>
         <button class="btn" id="addBtn">Zeit nachtragen</button>
       </section>`;
-    if (backupDue()) html += `<section class="panel remind"><p><b>Zeit für eine Sicherung.</b> Deine Daten liegen nur auf diesem Gerät. Speichere ab und zu eine Sicherungsdatei, zum Beispiel in deinen Mails oder deiner Cloud.</p>
-      <div class="row"><button class="btn primary" id="remSave">Sicherung speichern</button><button class="btn ghost" id="remLater">Später</button></div></section>`;
     const todays = state.entries.filter(e => e.start >= today).sort((a, b) => b.start - a.start);
     if (todays.length) html += `<section class="day"><div class="day-head"><strong>Heute erfasst</strong><span class="hint">Antippen zum Korrigieren</span></div>${todays.map(entryHTML).join('')}</section>`;
+    // Hinweise oben, damit sie auf dem Handy sofort sichtbar sind
+    if (restoreDue()) html = `<section class="panel remind"><p><b>Hast du schon eine Sicherung?</b> Auf diesem Gerät sind keine Einträge gespeichert. Wenn du die App schon benutzt hast, kannst du deine letzte Sicherungsdatei einlesen, zum Beispiel aus iCloud Drive oder OneDrive.</p>
+      <div class="row"><label class="btn primary" for="restFile" style="display:inline-flex;align-items:center">Sicherung einlesen</label><input type="file" id="restFile" accept="${BACKUP_ACCEPT}" hidden><button class="btn ghost" id="restNo">Neu anfangen</button></div></section>` + html;
+    else if (backupDue()) html = `<section class="panel remind"><p><b>Zeit für die wöchentliche Sicherung.</b> Deine Daten liegen nur auf diesem Gerät. ${shareMode() ? 'Tippe auf „Sicherung speichern“ und wähle im Teilen-Menü „In Dateien sichern“, dann iCloud Drive oder OneDrive.' : 'Speichere die Sicherungsdatei zum Beispiel in deinem OneDrive- oder iCloud-Ordner.'}</p>
+      <div class="row"><button class="btn primary" id="remSave">Sicherung speichern</button><button class="btn ghost" id="remLater">Morgen erinnern</button></div></section>` + html;
     $view.innerHTML = html;
 
     $view.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { sel.cat = b.dataset.cat; render(); });
@@ -364,7 +369,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     const st = document.getElementById('stopBtn'); if (st) st.onclick = () => stopTimer(false);
     document.getElementById('addBtn').onclick = () => openEditor(null);
     const rs = document.getElementById('remSave'); if (rs) rs.onclick = saveBackup;
-    const rl = document.getElementById('remLater'); if (rl) rl.onclick = () => { state.lastBackup = Date.now() - 23 * DAY; save(); render(); };
+    const rl = document.getElementById('remLater'); if (rl) rl.onclick = () => { state.backupSnooze = Date.now() + DAY; save(); render(); };
+    const rf = document.getElementById('restFile'); if (rf) rf.onchange = readBackupInput;
+    const rn = document.getElementById('restNo'); if (rn) rn.onclick = () => { state.restoreDismissed = true; save(); render(); };
     bindEntries();
   }
 
@@ -971,34 +978,73 @@ input::-webkit-date-and-time-value { text-align: left; }
     state.entries = [...local.values()];
     for (const k of ['offDays', 'holidayWeeks']) if (data[k]) state[k] = Object.assign({}, data[k], state[k] || {});
     if (data.settings && !state.settings) state.settings = data.settings;
+    const exported = Date.parse(data.exportedAt); if (exported) state.lastBackup = Math.max(state.lastBackup || 0, exported);
     savedBodies = new Map(state.entries.map(e => [e.id, bodyOf(e)]));
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
     scheduleSync(); render();
     toast(`${added} Einträge übernommen${updated ? `, ${updated} aktualisiert` : ''}`);
   }
+  // Auf Handy und Tablet über das Teilen-Menü (z. B. „In Dateien sichern“ → iCloud Drive/OneDrive), am Laptop als Download
+  const BACKUP_ACCEPT = '.json,.txt,application/json,text/plain';
+  const shareMode = () => !inClaude && !!(navigator.share && navigator.canShare) && matchMedia('(pointer: coarse)').matches;
+  function backupFile() {
+    const name = `Lehrerzeit-Sicherung_${fmtDateInput(Date.now())}`, data = backupData();
+    // Android teilt keine .json-Dateien, deshalb notfalls als Textdatei (Inhalt bleibt gleich)
+    for (const f of [new File([data], name + '.json', { type: 'application/json' }), new File([data], name + '.txt', { type: 'text/plain' })])
+      if (navigator.canShare({ files: [f] })) return f;
+    return null;
+  }
+  function backupDone() {
+    state.lastBackup = Date.now(); state.backupSnooze = null; save();
+    if (view !== 'auswertung') render();
+  }
   function saveBackup() {
-    state.lastBackup = Date.now(); save();
+    const file = shareMode() ? backupFile() : null;
+    if (file) {
+      navigator.share({ files: [file], title: 'Lehrerzeit-Sicherung' })
+        .then(() => { backupDone(); toast('Sicherung gespeichert'); })
+        .catch(e => { if (!e || e.name !== 'AbortError') downloadBackup(); });
+      return;
+    }
+    downloadBackup();
+  }
+  function downloadBackup() {
     saveFile(`Lehrerzeit-Sicherung_${fmtDateInput(Date.now())}.json`, new Blob([backupData()], { type: 'application/json' }), 'Sicherung gespeichert');
-    if (view === 'erfassen') render();
+    backupDone();
   }
-  // Erinnerung nur ohne Abgleich: alle 30 Tage, sobald es echte Einträge gibt
+  function readBackupInput(ev) { const f = ev.target.files[0]; if (!f) return; f.text().then(importBackup); ev.target.value = ''; }
+  // Erinnerung und Wiederherstellen nur in der installierten App (in claude.ai gleicht der Abgleich ab)
   function backupDue() {
-    if (sync.status === 'on' || sync.status === 'connecting' || state.entries.length < 5) return false;
+    if (inClaude || sync.status !== 'off' || !state.entries.length) return false;
+    if (state.backupSnooze && Date.now() < state.backupSnooze) return false;
     const first = state.entries.reduce((a, e) => Math.min(a, e.start), Infinity);
-    return Date.now() - Math.max(state.lastBackup || 0, first) > 30 * DAY;
+    return Date.now() - Math.max(state.lastBackup || 0, first) > 7 * DAY;
   }
+  function restoreDue() { return !inClaude && !state.entries.length && !state.running && !state.restoreDismissed; }
+  // Browser bitten, die Daten dauerhaft zu behalten (nicht automatisch löschen, wenn der Speicher knapp wird)
+  let storageSafe = null;
+  async function protectStorage() {
+    if (inClaude || !(navigator.storage && navigator.storage.persist)) return;
+    try {
+      storageSafe = await navigator.storage.persisted() || await navigator.storage.persist();
+      const el = document.getElementById('storeInfo'); if (el) el.textContent = storageLabel();
+    } catch (e) {}
+  }
+  const storageLabel = () => storageSafe ? 'Speicher geschützt: Der Browser löscht die Daten nicht von selbst.' : 'Der Browser hat den Speicherschutz noch nicht erlaubt. Installiere die App auf dem Startbildschirm und sichere regelmäßig.';
   function devicesPanelHTML() {
+    const last = state.lastBackup ? `Letzte Sicherung: ${fmtDay(state.lastBackup)} ${new Date(state.lastBackup).getFullYear()}.` : 'Noch keine Sicherung gespeichert.';
     return `<section class="panel">
       <h2>Geräte und Sicherung</h2>
       <div class="syncrow"><span class="syncdot ${sync.status === 'on' ? 'on' : sync.status === 'err' ? 'err' : ''}"></span><span class="hint" id="syncInfo">${syncLabel()}</span></div>
-      <p class="hint">Mit einer Sicherungsdatei kannst du deine Daten aufbewahren oder auf ein anderes Gerät übertragen. Beim Einlesen werden Einträge ergänzt, nichts wird gelöscht.</p>
-      <div class="row"><button class="btn" id="bkSave">Sicherung speichern</button><label class="btn" for="bkFile" style="display:inline-flex;align-items:center">Sicherung einlesen</label><input type="file" id="bkFile" accept=".json,application/json" hidden></div>
+      ${inClaude || storageSafe === null ? '' : `<p class="hint" id="storeInfo">${storageLabel()}</p>`}
+      <p class="hint">Mit einer Sicherungsdatei kannst du deine Daten aufbewahren oder auf ein anderes Gerät übertragen. ${shareMode() ? 'Auf dem Handy öffnet sich das Teilen-Menü: „In Dateien sichern“ und dann iCloud Drive oder OneDrive wählen. ' : ''}Beim Einlesen werden Einträge ergänzt, nichts wird gelöscht.${inClaude ? '' : ' ' + last}</p>
+      <div class="row"><button class="btn" id="bkSave">Sicherung speichern</button><label class="btn" for="bkFile" style="display:inline-flex;align-items:center">Sicherung einlesen</label><input type="file" id="bkFile" accept="${BACKUP_ACCEPT}" hidden></div>
     </section>`;
   }
   function bindDevicesPanel() {
     const b = document.getElementById('bkSave'); if (!b) return;
     b.onclick = saveBackup;
-    document.getElementById('bkFile').onchange = ev => { const f = ev.target.files[0]; if (!f) return; f.text().then(importBackup); ev.target.value = ''; };
+    document.getElementById('bkFile').onchange = readBackupInput;
   }
 
   // Live clock
@@ -1018,6 +1064,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && document.querySelector('link[rel=manifest]')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
+  protectStorage();
   render();
 })();
 </script>
