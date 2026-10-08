@@ -260,6 +260,8 @@ input::-webkit-date-and-time-value { text-align: left; }
     if (CAT_ALIAS[state.lastCat]) state.lastCat = CAT_ALIAS[state.lastCat];
     if (moved) save();
   }
+  // Bis Okt. 2026 war 1886 h voreingestellt; bestehende Installationen behalten ihr bisheriges Soll
+  if (state.entries.length && !(state.settings && state.settings.yearly)) { state.settings = Object.assign({}, state.settings, { yearly: 1886 }); save(); }
   // Ferienwochen NRW (Wochen mit mindestens drei Ferientagen, Montag als Schlüssel)
   const HOLIDAY_PRESETS = {
     'nrw-2026-27': { label: 'NRW 2026/27', weeks: ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-10-19', '2026-10-26', '2026-12-21', '2026-12-28', '2027-03-22', '2027-03-29', '2027-07-19', '2027-07-26'] },
@@ -493,7 +495,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
 
   // ---------- Soll (Jahresarbeitszeit, verteilt auf Unterrichtswochen) ----------
-  const SETTINGS_DEFAULT = { yearly: 1886, weeks: 40, pct: 100, since: null, yearStart: '08-01' };
+  const SETTINGS_DEFAULT = { yearly: 1805, weeks: 40, pct: 100, since: null, yearStart: '08-01' };
   const settings = () => { const s = Object.assign({}, SETTINGS_DEFAULT, state.settings || {}); delete s.weekly; return s; };
   const keyOf = t => fmtDateInput(t);
   const sinceTs = () => {
@@ -703,6 +705,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         <div class="field"><label class="label" for="stWeeks">Unterrichtswochen</label>
           <input type="text" inputmode="decimal" id="stWeeks" value="${fmtNum(st.weeks)}"></div>
       </div>
+      <p class="hint">So rechnet die App: Das Jahressoll (Vollzeit 1805 h, also rund 41 h pro Woche nach Abzug von Urlaub und Feiertagen) wird nur auf die Unterrichtswochen verteilt. Ferienwochen zählen so, als würdest du in ihnen nicht arbeiten, und haben kein Soll. Arbeitest du in den Ferien trotzdem, baust du in diesen Wochen ein Plus auf.</p>
       <div class="field"><label class="label" for="stPct">Beschäftigungsumfang (%)</label>
         <input type="text" inputmode="decimal" id="stPct" value="${fmtNum(st.pct)}">
         <span class="hint">Bei Teilzeit: deine Unterrichtsstunden geteilt durch das volle Deputat, z. B. 20 von 25,5 = 78 %.</span></div>
