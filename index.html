@@ -26,7 +26,7 @@
   --chalk: #e9b949;       /* Kreidegelb, nur für den laufenden Timer */
   --danger: #b4412f;
   --good: #2f7d4f;
-  --c1: #1f6b57; --c2: #2f6fd0; --c3: #d43d3d; --c4: #63b33a; --c5: #f08c00; --c6: #8f1d3f; --c7: #12a4c4; --c8: #e05fa8; --c9: #e2bd00; --c10: #0b2f5c; --c11: #6b7280; --c12: #7b3fe4; --c13: #222222; --c14: #c2c2c2; --c15: #8d5a2b;
+  --c1: #1f6b57; --c2: #2f6fd0; --c3: #d43d3d; --c4: #63b33a; --c5: #f08c00; --c6: #8f1d3f; --c7: #12a4c4; --c8: #e05fa8; --c9: #e2bd00; --c10: #0b2f5c; --c11: #6b7280; --c12: #7b3fe4; --c13: #222222; --c14: #c2c2c2; --c15: #8d5a2b; --c16: #7d8a00;
   --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -35,12 +35,12 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #121916; --surface: #1a2420; --ink: #e6ece9; --muted: #9aaba4; --line: #2c3a35;
   --accent: #4fb092; --accent-ink: #0d1613; --chalk: #f0c75e; --danger: #e07a66; --good: #6cc08a;
-  --c1: #4fb092; --c2: #5b95f0; --c3: #f06a6a; --c4: #8fd66a; --c5: #ffa733; --c6: #d0607e; --c7: #4fd0e8; --c8: #f08cc4; --c9: #f5d63d; --c10: #c7d7f0; --c11: #9aa3ad; --c12: #a98cf5; --c13: #f2f2f2; --c14: #6f6f6f; --c15: #c9915a;
+  --c1: #4fb092; --c2: #5b95f0; --c3: #f06a6a; --c4: #8fd66a; --c5: #ffa733; --c6: #d0607e; --c7: #4fd0e8; --c8: #f08cc4; --c9: #f5d63d; --c10: #c7d7f0; --c11: #9aa3ad; --c12: #a98cf5; --c13: #f2f2f2; --c14: #6f6f6f; --c15: #c9915a; --c16: #c3d14a;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #121916; --surface: #1a2420; --ink: #e6ece9; --muted: #9aaba4; --line: #2c3a35;
   --accent: #4fb092; --accent-ink: #0d1613; --chalk: #f0c75e; --danger: #e07a66; --good: #6cc08a;
-  --c1: #4fb092; --c2: #5b95f0; --c3: #f06a6a; --c4: #8fd66a; --c5: #ffa733; --c6: #d0607e; --c7: #4fd0e8; --c8: #f08cc4; --c9: #f5d63d; --c10: #c7d7f0; --c11: #9aa3ad; --c12: #a98cf5; --c13: #f2f2f2; --c14: #6f6f6f; --c15: #c9915a;
+  --c1: #4fb092; --c2: #5b95f0; --c3: #f06a6a; --c4: #8fd66a; --c5: #ffa733; --c6: #d0607e; --c7: #4fd0e8; --c8: #f08cc4; --c9: #f5d63d; --c10: #c7d7f0; --c11: #9aa3ad; --c12: #a98cf5; --c13: #f2f2f2; --c14: #6f6f6f; --c15: #c9915a; --c16: #c3d14a;
   color-scheme: dark; }
 
 * { box-sizing: border-box; }
@@ -225,6 +225,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     { id: 'fortbildung', name: 'Fortbil\u00ADdungen', color: 'var(--c9)' },
     { id: 'schulentwicklung', name: 'Schul\u00ADentwicklung', color: 'var(--c10)' },
     { id: 'fahrt', name: 'Klassen\u00ADfahrt', color: 'var(--c6)' },
+    { id: 'veranstaltung', name: 'Klassen-/Schul\u00ADveranstaltung', color: 'var(--c16)' },
     { id: 'praktikum', name: 'Praktikums\u00ADbesuch', color: 'var(--c13)' },
     { id: 'sonstiges', name: 'Sonstiges (s. Notiz)', color: 'var(--c14)' },
   ];
