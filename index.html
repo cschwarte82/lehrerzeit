@@ -26,7 +26,7 @@
   --chalk: #e9b949;       /* Kreidegelb, nur für den laufenden Timer */
   --danger: #b4412f;
   --good: #2f7d4f;
-  --c1: #1f6b57; --c2: #3f6fb0; --c3: #a5532d; --c4: #7a4fa0; --c5: #b3862a; --c6: #3f8f9a; --c7: #2b4f80; --c8: #b04a6e; --c9: #6b7a2a; --c10: #5a6470; --c11: #4b5bbf; --c12: #8f3f3f; --c13: #3d8a3d; --c14: #858585;
+  --c1: #1f6b57; --c2: #3f6fb0; --c3: #a5532d; --c4: #7a4fa0; --c5: #b3862a; --c6: #3f8f9a; --c7: #2b4f80; --c8: #b04a6e; --c9: #6b7a2a; --c10: #5a6470; --c11: #4b5bbf; --c12: #8f3f3f; --c13: #3d8a3d; --c14: #858585; --c15: #7a5c33;
   --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -35,12 +35,12 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #121916; --surface: #1a2420; --ink: #e6ece9; --muted: #9aaba4; --line: #2c3a35;
   --accent: #4fb092; --accent-ink: #0d1613; --chalk: #f0c75e; --danger: #e07a66; --good: #6cc08a;
-  --c1: #4fb092; --c2: #7aa6e6; --c3: #e08d61; --c4: #b48ddb; --c5: #e0b95a; --c6: #6cc3cc; --c7: #a9c4ef; --c8: #e38aa8; --c9: #b5c46a; --c10: #a7b1bd; --c11: #95a1f0; --c12: #e39393; --c13: #84c984; --c14: #b9b9b9;
+  --c1: #4fb092; --c2: #7aa6e6; --c3: #e08d61; --c4: #b48ddb; --c5: #e0b95a; --c6: #6cc3cc; --c7: #a9c4ef; --c8: #e38aa8; --c9: #b5c46a; --c10: #a7b1bd; --c11: #95a1f0; --c12: #e39393; --c13: #84c984; --c14: #b9b9b9; --c15: #cfae7e;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #121916; --surface: #1a2420; --ink: #e6ece9; --muted: #9aaba4; --line: #2c3a35;
   --accent: #4fb092; --accent-ink: #0d1613; --chalk: #f0c75e; --danger: #e07a66; --good: #6cc08a;
-  --c1: #4fb092; --c2: #7aa6e6; --c3: #e08d61; --c4: #b48ddb; --c5: #e0b95a; --c6: #6cc3cc; --c7: #a9c4ef; --c8: #e38aa8; --c9: #b5c46a; --c10: #a7b1bd; --c11: #95a1f0; --c12: #e39393; --c13: #84c984; --c14: #b9b9b9;
+  --c1: #4fb092; --c2: #7aa6e6; --c3: #e08d61; --c4: #b48ddb; --c5: #e0b95a; --c6: #6cc3cc; --c7: #a9c4ef; --c8: #e38aa8; --c9: #b5c46a; --c10: #a7b1bd; --c11: #95a1f0; --c12: #e39393; --c13: #84c984; --c14: #b9b9b9; --c15: #cfae7e;
   color-scheme: dark; }
 
 * { box-sizing: border-box; }
@@ -210,6 +210,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     { id: 'lernzeit', name: 'Lernzeit', color: 'var(--c7)' },
     { id: 'korrektur', name: 'Korrekturen', color: 'var(--c3)' },
     { id: 'administration', name: 'Administra\u00ADtion', color: 'var(--c11)' },
+    { id: 'klasse', name: 'Klassen\u00ADorganisation', color: 'var(--c15)' },
     { id: 'leitung', name: 'Leitungs\u00ADtätigkeit', color: 'var(--c12)' },
     { id: 'eltern', name: 'Schüler-/Eltern\u00ADgespräch', color: 'var(--c5)' },
     { id: 'austausch', name: 'Kollegialer Austausch', color: 'var(--c8)' },
