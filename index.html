@@ -26,7 +26,7 @@
   --chalk: #e9b949;       /* Kreidegelb, nur für den laufenden Timer */
   --danger: #b4412f;
   --good: #2f7d4f;
-  --c1: #1f6b57; --c2: #3f6fb0; --c3: #a5532d; --c4: #7a4fa0; --c5: #b3862a; --c6: #3f8f9a; --c7: #2b4f80; --c8: #b04a6e; --c9: #6b7a2a; --c10: #5a6470;
+  --c1: #1f6b57; --c2: #3f6fb0; --c3: #a5532d; --c4: #7a4fa0; --c5: #b3862a; --c6: #3f8f9a; --c7: #2b4f80; --c8: #b04a6e; --c9: #6b7a2a; --c10: #5a6470; --c11: #4b5bbf; --c12: #8f3f3f; --c13: #3d8a3d; --c14: #858585;
   --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -35,12 +35,12 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #121916; --surface: #1a2420; --ink: #e6ece9; --muted: #9aaba4; --line: #2c3a35;
   --accent: #4fb092; --accent-ink: #0d1613; --chalk: #f0c75e; --danger: #e07a66; --good: #6cc08a;
-  --c1: #4fb092; --c2: #7aa6e6; --c3: #e08d61; --c4: #b48ddb; --c5: #e0b95a; --c6: #6cc3cc; --c7: #a9c4ef; --c8: #e38aa8; --c9: #b5c46a; --c10: #a7b1bd;
+  --c1: #4fb092; --c2: #7aa6e6; --c3: #e08d61; --c4: #b48ddb; --c5: #e0b95a; --c6: #6cc3cc; --c7: #a9c4ef; --c8: #e38aa8; --c9: #b5c46a; --c10: #a7b1bd; --c11: #95a1f0; --c12: #e39393; --c13: #84c984; --c14: #b9b9b9;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #121916; --surface: #1a2420; --ink: #e6ece9; --muted: #9aaba4; --line: #2c3a35;
   --accent: #4fb092; --accent-ink: #0d1613; --chalk: #f0c75e; --danger: #e07a66; --good: #6cc08a;
-  --c1: #4fb092; --c2: #7aa6e6; --c3: #e08d61; --c4: #b48ddb; --c5: #e0b95a; --c6: #6cc3cc; --c7: #a9c4ef; --c8: #e38aa8; --c9: #b5c46a; --c10: #a7b1bd;
+  --c1: #4fb092; --c2: #7aa6e6; --c3: #e08d61; --c4: #b48ddb; --c5: #e0b95a; --c6: #6cc3cc; --c7: #a9c4ef; --c8: #e38aa8; --c9: #b5c46a; --c10: #a7b1bd; --c11: #95a1f0; --c12: #e39393; --c13: #84c984; --c14: #b9b9b9;
   color-scheme: dark; }
 
 * { box-sizing: border-box; }
@@ -81,6 +81,9 @@ h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; mar
 
 .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
 .chip { display: flex; align-items: center; gap: 8px; text-align: left; padding: 10px 12px; line-height: 1.2; min-height: 48px; padding-inline: 10px; hyphens: manual; min-width: 0; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-weight: 600; font-size: .95rem; }
+/* Handy: Tätigkeiten immer zweispaltig, Start-Knopf bleibt über der Tab-Leiste sichtbar */
+@media (max-width: 719px) { #startBtn { position: sticky; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); z-index: 5; box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 22%, transparent); } }
+@media (max-width: 480px) { .chips { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .chip { min-height: 42px; padding: 7px 9px; font-size: .88rem; gap: 7px; } }
 .chip .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .chip[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; align-self: flex-start; }
@@ -203,20 +206,30 @@ input::-webkit-date-and-time-value { text-align: left; }
 (() => {
   const CATS = [
     { id: 'unterricht', name: 'Unterricht', color: 'var(--c1)' },
-    { id: 'vorbereitung', name: 'Vor\u00ADbereitung', color: 'var(--c2)' },
-    { id: 'nachbereitung', name: 'Nach\u00ADbereitung', color: 'var(--c7)' },
-    { id: 'korrektur', name: 'Korrektur', color: 'var(--c3)' },
-    { id: 'konferenz', name: 'Konferenzen', color: 'var(--c4)' },
-    { id: 'eltern', name: 'Eltern\u00ADgespräche', color: 'var(--c5)' },
+    { id: 'vorbereitung', name: 'Vor-/Nach\u00ADbereitung', color: 'var(--c2)' },
+    { id: 'lernzeit', name: 'Lernzeit', color: 'var(--c7)' },
+    { id: 'korrektur', name: 'Korrekturen', color: 'var(--c3)' },
+    { id: 'administration', name: 'Administra\u00ADtion', color: 'var(--c11)' },
+    { id: 'leitung', name: 'Leitungs\u00ADtätigkeit', color: 'var(--c12)' },
+    { id: 'eltern', name: 'Schüler-/Eltern\u00ADgespräch', color: 'var(--c5)' },
     { id: 'austausch', name: 'Kollegialer Austausch', color: 'var(--c8)' },
-    { id: 'fortbildung', name: 'Fortbildung', color: 'var(--c9)' },
+    { id: 'konferenz', name: 'Konferenzen', color: 'var(--c4)' },
+    { id: 'fortbildung', name: 'Fortbil\u00ADdungen', color: 'var(--c9)' },
     { id: 'schulentwicklung', name: 'Schul\u00ADentwicklung', color: 'var(--c10)' },
-    { id: 'fahrt', name: 'Klassen\u00ADfahrten', color: 'var(--c6)' },
+    { id: 'fahrt', name: 'Klassen\u00ADfahrt', color: 'var(--c6)' },
+    { id: 'praktikum', name: 'Praktikums\u00ADbesuch', color: 'var(--c13)' },
+    { id: 'sonstiges', name: 'Sonstiges (s. Notiz)', color: 'var(--c14)' },
   ];
   const PLACES = { schule: 'Schule', zuhause: 'Zuhause' };
   const KEY = 'lehrerzeit.v1';
   const inClaude = !!(window.claude && typeof window.claude.use === 'function');
-  const catById = id => CATS.find(c => c.id === id) || CATS[0];
+  // Frühere Kategorie „Nachbereitung“ ist in „Vor-/Nachbereitung“ aufgegangen
+  const CAT_ALIAS = { nachbereitung: 'vorbereitung' };
+  const catById = id => CATS.find(c => c.id === (CAT_ALIAS[id] || id)) || CATS[CATS.length - 1];
+  // Eigene Auswahl (Einstellungen): mindestens 4 der vorgegebenen Tätigkeiten, ohne Auswahl alle
+  const MIN_CATS = 4;
+  const activeCats = () => { const ids = state.settings && state.settings.cats; const l = Array.isArray(ids) ? CATS.filter(c => ids.includes(c.id)) : []; return l.length >= MIN_CATS ? l : CATS; };
+  const firstActive = id => activeCats().some(c => c.id === id) ? id : activeCats()[0].id;
 
   // ---------- Storage ----------
   let state = { entries: [], running: null, lastCat: 'unterricht', lastPlace: 'schule' };
@@ -230,6 +243,13 @@ input::-webkit-date-and-time-value { text-align: left; }
     savedBodies = next;
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
     try { scheduleSync(); } catch (e) { /* Abgleich noch nicht initialisiert */ }
+  }
+  {
+    let moved = false;
+    for (const e of state.entries) if (CAT_ALIAS[e.cat]) { e.cat = CAT_ALIAS[e.cat]; moved = true; }
+    if (state.running && CAT_ALIAS[state.running.cat]) { state.running.cat = CAT_ALIAS[state.running.cat]; moved = true; }
+    if (CAT_ALIAS[state.lastCat]) state.lastCat = CAT_ALIAS[state.lastCat];
+    if (moved) save();
   }
   // Ferienwochen NRW (Wochen mit mindestens drei Ferientagen, Montag als Schlüssel)
   const HOLIDAY_PRESETS = {
@@ -276,7 +296,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     const byCat = {}, byPlace = { schule: 0, zuhause: 0 }; let total = 0;
     for (const e of allEntries()) {
       const d = overlap(e, from, to); if (!d) continue;
-      total += d; byCat[e.cat] = (byCat[e.cat] || 0) + d; byPlace[e.place] = (byPlace[e.place] || 0) + d;
+      total += d; const k = catById(e.cat).id; byCat[k] = (byCat[k] || 0) + d; byPlace[e.place] = (byPlace[e.place] || 0) + d;
     }
     return { total, byCat, byPlace };
   }
@@ -287,7 +307,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   let monthAnchor = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); })();
   let period = 'woche';
   let yearAnchor = Date.now();
-  let sel = { cat: state.lastCat, place: state.lastPlace, note: '' };
+  let sel = { cat: firstActive(state.lastCat), place: state.lastPlace, note: '' };
   const $view = document.getElementById('view');
   const $modal = document.getElementById('modalRoot');
 
@@ -316,7 +336,9 @@ input::-webkit-date-and-time-value { text-align: left; }
 
   // ---------- Views ----------
   function chipsHTML(active, attr) {
-    return `<div class="chips">${CATS.map(c => `<button class="chip" ${attr}="${c.id}" aria-pressed="${c.id === active}"><span class="sw" style="background:${c.color}"></span>${c.name}</button>`).join('')}</div>`;
+    // ausgeblendete Tätigkeit bleibt sichtbar, solange sie gerade gewählt ist (z. B. alter Eintrag)
+    const list = activeCats().some(c => c.id === active) ? activeCats() : CATS.filter(c => c.id === active || activeCats().includes(c));
+    return `<div class="chips">${list.map(c => `<button class="chip" ${attr}="${c.id}" aria-pressed="${c.id === active}"><span class="sw" style="background:${c.color}"></span>${c.name}</button>`).join('')}</div>`;
   }
   function placeHTML(active, attr) {
     return `<div class="seg" role="group" aria-label="Ort">${Object.entries(PLACES).map(([k, v]) => `<button ${attr}="${k}" aria-pressed="${k === active}">${v}</button>`).join('')}</div>`;
@@ -652,6 +674,9 @@ input::-webkit-date-and-time-value { text-align: left; }
       </div>
       <p class="hint">Tage vor „Soll zählt ab“ erzeugen keine Minusstunden.</p>
       <p class="hint" id="stPreview"></p>
+      <span class="label">Meine Tätigkeiten</span>
+      <div class="chips" id="stCats"></div>
+      <p class="hint">Wähle mindestens ${MIN_CATS} aus. Abgewählte Tätigkeiten verschwinden aus der Auswahl beim Erfassen; bereits erfasste Zeiten bleiben erhalten.</p>
       <p class="warn" id="stErr" hidden></p>
       <div class="actions"><div><button class="btn" id="stCancel">Abbrechen</button><button class="btn primary" id="stSave">Speichern</button></div></div>
     </div></div>`;
@@ -661,6 +686,17 @@ input::-webkit-date-and-time-value { text-align: left; }
       document.getElementById('stPreview').textContent = (y > 0 && w > 0 && p > 0) ? `Ergibt ${fmtNum(y * p / 100 / w)} h pro Unterrichtswoche, ${fmtDur(y * p / 100 / w / 5 * 3600000)} h pro Tag (Mo–Fr).` : '';
     };
     ['stYearly', 'stWeeks', 'stPct'].forEach(id => document.getElementById(id).oninput = preview); preview();
+    const cats = new Set(activeCats().map(c => c.id));
+    const drawCats = () => {
+      const box = document.getElementById('stCats');
+      box.innerHTML = CATS.map(c => `<button class="chip" data-stcat="${c.id}" aria-pressed="${cats.has(c.id)}"><span class="sw" style="background:${c.color}"></span>${c.name}</button>`).join('');
+      box.querySelectorAll('[data-stcat]').forEach(b => b.onclick = () => {
+        const id = b.dataset.stcat;
+        if (cats.has(id)) { if (cats.size <= MIN_CATS) { toast(`Mindestens ${MIN_CATS} Tätigkeiten`); return; } cats.delete(id); } else cats.add(id);
+        drawCats();
+      });
+    };
+    drawCats();
     document.getElementById('stCancel').onclick = close;
     document.getElementById('ov').onclick = ev => { if (ev.target.id === 'ov') close(); };
     document.getElementById('stSave').onclick = () => {
@@ -673,6 +709,8 @@ input::-webkit-date-and-time-value { text-align: left; }
       if (!(p > 0 && p <= 100)) return fail('Bitte einen Umfang zwischen 1 und 100 % eingeben.');
       if (!ys || +ys[1] < 1 || +ys[1] > 31 || +ys[2] < 1 || +ys[2] > 12) return fail('Bitte den Schuljahresbeginn als Tag.Monat eingeben, z. B. 01.08.');
       state.settings = { yearly: y, weeks: w, pct: p, since: since || null, yearStart: `${pad(+ys[2])}-${pad(+ys[1])}` };
+      if (cats.size < CATS.length) state.settings.cats = CATS.filter(c => cats.has(c.id)).map(c => c.id);
+      sel.cat = firstActive(sel.cat);
       save(); close(); render(); toast('Einstellungen gespeichert');
     };
   }
@@ -741,7 +779,7 @@ input::-webkit-date-and-time-value { text-align: left; }
 
     // Tätigkeiten
     const per = {}; for (const c of CATS) per[c.id] = { schule: 0, zuhause: 0 };
-    for (const e of entries) per[e.cat][e.place] += overlap(e, from, to);
+    for (const e of entries) per[catById(e.cat).id][e.place] += overlap(e, from, to);
     const tt = [['Tätigkeit', 'Schule', 'Zuhause', 'Gesamt', 'Anteil']];
     for (const c of CATS) { const g = per[c.id].schule + per[c.id].zuhause; tt.push([plain(c.name), hrs(per[c.id].schule), hrs(per[c.id].zuhause), hrs(g), s.total ? g / s.total : 0]); }
     tt.push(['Summe', hrs(s.byPlace.schule), hrs(s.byPlace.zuhause), hrs(s.total), s.total ? 1 : 0]);
@@ -777,7 +815,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     const isNew = !entry;
     const now = Date.now();
     const e = entry ? { ...entry } : { cat: sel.cat, place: sel.place, note: '', start: now - 3600000, end: now };
-    let cat = e.cat, place = e.place, confirmDel = false;
+    let cat = catById(e.cat).id, place = e.place, confirmDel = false;
     function draw(err) {
       $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="edTitle">
         <h2 id="edTitle">${isNew ? 'Zeit nachtragen' : 'Eintrag korrigieren'}</h2>
