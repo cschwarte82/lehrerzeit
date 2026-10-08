@@ -16,8 +16,13 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 
 ## Datenschutz
 Alle Daten bleiben auf dem eigenen Gerät. Es gibt kein Konto und keinen Server, der Daten speichert.
-Wichtig: Unter „Einträge → Geräte und Sicherung“ regelmäßig eine Sicherungsdatei speichern. Die App erinnert alle 30 Tage daran.
-Mit derselben Datei lassen sich Daten auf ein zweites Gerät übertragen („Sicherung einlesen“).
+
+## Daten sichern
+- **Speicherschutz:** Die App bittet den Browser, ihre Daten dauerhaft zu behalten. Ob das geklappt hat, steht unter „Einträge → Geräte und Sicherung“. Am zuverlässigsten ist es, wenn die App auf dem Startbildschirm installiert ist.
+- **Wöchentliche Erinnerung:** Einmal pro Woche erscheint oben der Hinweis „Zeit für die wöchentliche Sicherung“. Auf dem Handy öffnet „Sicherung speichern“ das Teilen-Menü: „In Dateien sichern“ wählen und als Ort iCloud Drive oder OneDrive nehmen. Am Laptop wird die Datei heruntergeladen; am besten in den OneDrive- oder iCloud-Ordner legen.
+- **Wiederherstellen:** Ist die App leer, etwa nach einem neuen Handy oder gelöschten Websitedaten, schlägt sie oben vor, die letzte Sicherung einzulesen. Beim Einlesen werden Einträge ergänzt, nichts wird gelöscht.
+- Mit derselben Datei lassen sich Daten auch auf ein zweites Gerät übertragen.
+- Wer die Websitedaten des Browsers löscht, verliert alles seit der letzten Sicherung, also höchstens die Einträge einer Woche.
 
 ## Einstellungen anpassen
 Oben rechts „Einstellungen“: Jahressoll, Unterrichtswochen, Beschäftigungsumfang (Teilzeit) und Schuljahresbeginn.
