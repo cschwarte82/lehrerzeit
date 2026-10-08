@@ -82,7 +82,14 @@ h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; mar
 .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
 .chip { display: flex; align-items: center; gap: 8px; text-align: left; padding: 10px 12px; line-height: 1.2; min-height: 48px; padding-inline: 10px; hyphens: manual; min-width: 0; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-weight: 600; font-size: .95rem; }
 /* Handy: Tätigkeiten immer zweispaltig, Start-Knopf bleibt über der Tab-Leiste sichtbar */
-@media (max-width: 719px) { #startBtn { position: sticky; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); z-index: 5; box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 22%, transparent); } }
+/* Ort und Start in einer Leiste */
+.startbar { display: flex; gap: 10px; align-items: stretch; }
+.startbar .seg { align-self: stretch; flex: none; }
+.startbar .seg button { padding: 8px 12px; }
+.startbar #startBtn { flex: 1; min-width: 0; }
+.longrun { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
+.longrun p { margin: 0; }
+@media (max-width: 719px) { .startbar { position: sticky; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); z-index: 5; background: var(--surface); padding-block: 8px; margin-block: -8px; } .startbar #startBtn { box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 22%, transparent); } }
 @media (max-width: 480px) { .chips { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .chip { min-height: 42px; padding: 7px 9px; font-size: .88rem; gap: 7px; } }
 .chip .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .chip[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
@@ -255,6 +262,8 @@ input::-webkit-date-and-time-value { text-align: left; }
   // Ferienwochen NRW (Wochen mit mindestens drei Ferientagen, Montag als Schlüssel)
   const HOLIDAY_PRESETS = {
     'nrw-2026-27': { label: 'NRW 2026/27', weeks: ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-10-19', '2026-10-26', '2026-12-21', '2026-12-28', '2027-03-22', '2027-03-29', '2027-07-19', '2027-07-26'] },
+    // Quelle: kalenderpedia.de (Herbst 25.10.–6.11.27, Weihnachten 24.12.27–8.1.28, Ostern 10.–22.4.28, Sommer ab 10.7.28)
+    'nrw-2027-28': { label: 'NRW 2027/28', weeks: ['2027-08-02', '2027-08-09', '2027-08-16', '2027-08-23', '2027-10-25', '2027-11-01', '2027-12-27', '2028-01-03', '2028-04-10', '2028-04-17', '2028-07-10', '2028-07-17', '2028-07-24', '2028-07-31'] },
   };
   function applyPreset(id) {
     state.holidayWeeks = state.holidayWeeks || {};
@@ -262,7 +271,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     state.presets = Object.assign({}, state.presets, { [id]: true });
     save();
   }
-  if (!(state.presets && state.presets['nrw-2026-27'])) applyPreset('nrw-2026-27');
+  for (const id of Object.keys(HOLIDAY_PRESETS)) if (!(state.presets && state.presets[id])) applyPreset(id);
 
   // ---------- Date helpers ----------
   const DAY = 86400000;
@@ -319,7 +328,11 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
 
   // ---------- Timer actions ----------
+  let noteWarn = false;
+  const LONG_RUN = 10 * 3600000;
   function startTimer() {
+    if (sel.cat === 'sonstiges' && !sel.note.trim() && !noteWarn) { noteWarn = true; render(); const n = document.getElementById('noteIn'); if (n) n.focus(); return; }
+    noteWarn = false;
     state.running = { cat: sel.cat, place: sel.place, note: sel.note.trim(), start: Date.now() };
     state.lastCat = sel.cat; state.lastPlace = sel.place; save(); render();
     if (storageSafe === false) protectStorage();
@@ -336,9 +349,15 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
 
   // ---------- Views ----------
+  function frequentFirst(list) {
+    const since = Date.now() - 60 * DAY, n = {};
+    for (const e of state.entries) if (e.start >= since) { const k = catById(e.cat).id; n[k] = (n[k] || 0) + 1; }
+    const top = list.filter(c => n[c.id]).sort((a, b) => n[b.id] - n[a.id]).slice(0, 3);
+    return [...top, ...list.filter(c => !top.includes(c))];
+  }
   function chipsHTML(active, attr) {
     // ausgeblendete Tätigkeit bleibt sichtbar, solange sie gerade gewählt ist (z. B. alter Eintrag)
-    const list = activeCats().some(c => c.id === active) ? activeCats() : CATS.filter(c => c.id === active || activeCats().includes(c));
+    const list = frequentFirst(activeCats().some(c => c.id === active) ? activeCats() : CATS.filter(c => c.id === active || activeCats().includes(c)));
     return `<div class="chips">${list.map(c => `<button class="chip" ${attr}="${c.id}" aria-pressed="${c.id === active}"><span class="sw" style="background:${c.color}"></span>${c.name}</button>`).join('')}</div>`;
   }
   function placeHTML(active, attr) {
@@ -351,7 +370,16 @@ input::-webkit-date-and-time-value { text-align: left; }
     const todaySum = sumRange(today, today + DAY).total;
     const ws = startOfWeek(Date.now());
     const weekSum = sumRange(ws, ws + 7 * DAY).total;
-    let html = `<section class="panel timer ${r ? 'running' : ''}">`;
+    let html = '';
+    // Läuft der Timer ungewöhnlich lange oder seit gestern, nachfragen
+    if (r && (Date.now() - r.start > LONG_RUN || startOfDay(r.start) < today) && !(r.okUntil && Date.now() < r.okUntil)) {
+      const sug = Math.min(r.start + 4 * 3600000, Date.now());
+      html += `<section class="panel longrun"><p><b>Läuft die Zeit noch?</b> Der Timer läuft seit ${startOfDay(r.start) < today ? fmtDay(r.start) + ', ' : ''}${fmtTime(r.start)} Uhr, also ${fmtDur(Date.now() - r.start)} h. Vielleicht wurde Stopp vergessen.</p>
+        <div class="row"><div class="field" style="flex:0 1 140px"><label class="label" for="lrEnd">Beendet um</label><input type="time" id="lrEnd" value="${fmtTime(sug)}"></div></div>
+        <p class="warn" id="lrErr" hidden></p>
+        <div class="row"><button class="btn primary" id="lrSave">Mit diesem Ende speichern</button><button class="btn ghost" id="lrOk">Läuft wirklich noch</button></div></section>`;
+    }
+    html += `<section class="panel timer ${r ? 'running' : ''}">`;
     if (r) {
       const c = catById(r.cat);
       html += `<div class="state"><span class="dot"></span><span>Läuft seit ${fmtTime(r.start)} · ${c.name} · ${PLACES[r.place]}</span></div>
@@ -365,10 +393,9 @@ input::-webkit-date-and-time-value { text-align: left; }
         <div class="clock">00:00:00</div>
         <span class="label">Tätigkeit</span>
         ${chipsHTML(sel.cat, 'data-cat')}
-        <span class="label">Ort</span>
-        ${placeHTML(sel.place, 'data-place')}
-        <div class="field"><label class="label" for="noteIn">Notiz (optional)</label><input type="text" id="noteIn" placeholder="z. B. 9b Mathe, Klausur Q1" value="${esc(sel.note)}"></div>
-        <button class="btn big primary" id="startBtn">Start</button>`;
+        <div class="field"><label class="label" for="noteIn">Notiz ${sel.cat === 'sonstiges' ? '(bitte ausfüllen)' : '(optional)'}</label><input type="text" id="noteIn" placeholder="${sel.cat === 'sonstiges' ? 'Worum geht es?' : 'z. B. 9b Mathe, Klausur Q1'}" value="${esc(sel.note)}"></div>
+        ${noteWarn ? `<p class="warn" id="noteWarn">Bei „Sonstiges“ bitte kurz notieren, worum es geht. Tippe nochmal auf Start, um ohne Notiz zu beginnen.</p>` : ''}
+        <div class="startbar">${placeHTML(sel.place, 'data-place')}<button class="btn big primary" id="startBtn">Start</button></div>`;
     }
     html += `</section>
       <section class="panel">
@@ -384,12 +411,23 @@ input::-webkit-date-and-time-value { text-align: left; }
       <div class="row"><button class="btn primary" id="remSave">Sicherung speichern</button><button class="btn ghost" id="remLater">Morgen erinnern</button></div></section>` + html;
     $view.innerHTML = html;
 
-    $view.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { sel.cat = b.dataset.cat; render(); });
+    $view.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { sel.cat = b.dataset.cat; noteWarn = false; render(); });
     $view.querySelectorAll('[data-place]').forEach(b => b.onclick = () => { sel.place = b.dataset.place; render(); });
     $view.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => { if (b.dataset.switch !== r.cat) switchTo(b.dataset.switch); });
     const note = document.getElementById('noteIn'); if (note) note.oninput = () => sel.note = note.value;
     const sb = document.getElementById('startBtn'); if (sb) sb.onclick = startTimer;
     const st = document.getElementById('stopBtn'); if (st) st.onclick = () => stopTimer(false);
+    const lo = document.getElementById('lrOk'); if (lo) lo.onclick = () => { state.running.okUntil = Date.now() + 4 * 3600000; save(); render(); };
+    const ls = document.getElementById('lrSave'); if (ls) ls.onclick = () => {
+      const v = document.getElementById('lrEnd').value, err = document.getElementById('lrErr');
+      if (!v) { err.textContent = 'Bitte eine Uhrzeit eingeben.'; err.hidden = false; return; }
+      const [h, m] = v.split(':').map(Number), d = new Date(r.start); d.setHours(h, m, 0, 0);
+      let end = d.getTime(); if (end <= r.start) end += DAY;
+      if (end > Date.now()) { err.textContent = 'Das Ende liegt in der Zukunft. Bitte eine frühere Uhrzeit wählen.'; err.hidden = false; return; }
+      if (end - r.start > 16 * 3600000) { err.textContent = 'Höchstens 16 Stunden. Bitte die Uhrzeit prüfen.'; err.hidden = false; return; }
+      state.entries.push({ id: uid(), cat: r.cat, place: r.place, note: r.note, start: r.start, end });
+      state.running = null; save(); render(); toast(`Gespeichert: ${catById(r.cat).name}, ${fmtDur(end - r.start)} h`);
+    };
     document.getElementById('addBtn').onclick = () => openEditor(null);
     const rs = document.getElementById('remSave'); if (rs) rs.onclick = saveBackup;
     const rl = document.getElementById('remLater'); if (rl) rl.onclick = () => { state.backupSnooze = Date.now() + DAY; save(); render(); };
@@ -595,7 +633,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       <section class="panel">
         <h2>Ferienwochen festlegen</h2>
         <p class="hint">Tippe die Wochen an, in denen Ferien sind. Sie haben kein Soll. Markiert: ${holCount} Ferienwochen, bleiben ${teachCount} Unterrichtswochen.${teachCount !== st.weeks ? ` Für ${fmtNum(st.weeks)} Unterrichtswochen sollten ${weeks.length - st.weeks} Wochen markiert sein.` : ''}</p>
-        <div class="row"><button class="btn" id="presetNRW">NRW-Ferien 2026/27 eintragen</button><button class="btn ghost" id="clearHol">Alle Markierungen entfernen</button></div>
+        <div class="row">${HOLIDAY_PRESETS['nrw-' + schoolYearLabel(from).replace('/', '-')] ? `<button class="btn" id="presetNRW">NRW-Ferien ${schoolYearLabel(from)} eintragen</button>` : ''}<button class="btn ghost" id="clearHol">Alle Markierungen entfernen</button></div>
         <div class="weekgrid">${weeks.map(w => `<button class="wk" data-hwk="${keyOf(w)}" aria-pressed="${isHoliday(w)}"><b>KW ${isoWeek(w).week}</b><span>${fmtShort(w)}</span></button>`).join('')}</div>
       </section>`;
       if (s.total) html += `<section class="panel"><h2>Nach Tätigkeit</h2>${catListHTML(s.byCat, s.total)}</section>`;
@@ -619,7 +657,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     $view.querySelectorAll('[data-off]').forEach(b => b.onclick = () => openOffDay(b.dataset.off));
     $view.querySelectorAll('[data-hw]').forEach(b => b.onclick = () => { if ((b.dataset.hw === '1') !== isHoliday(from)) toggleHoliday(keyOf(from)); });
     $view.querySelectorAll('[data-hwk]').forEach(b => b.onclick = () => toggleHoliday(b.dataset.hwk));
-    const pn = document.getElementById('presetNRW'); if (pn) pn.onclick = () => { applyPreset('nrw-2026-27'); render(); toast('NRW-Ferien eingetragen'); };
+    const pn = document.getElementById('presetNRW'); if (pn) pn.onclick = () => { applyPreset('nrw-' + schoolYearLabel(from).replace('/', '-')); render(); toast('NRW-Ferien eingetragen'); };
     const ch = document.getElementById('clearHol'); if (ch) ch.onclick = () => { state.holidayWeeks = state.holidayWeeks || {}; for (const w of yearWeeks) if (state.holidayWeeks[keyOf(w)]) state.holidayWeeks[keyOf(w)] = false; save(); render(); toast('Markierungen in diesem Schuljahr entfernt'); };
     document.getElementById('xlsPeriod').onclick = () => exportExcel(from, to, label);
     document.getElementById('xlsAll').onclick = () => {
@@ -816,7 +854,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     const isNew = !entry;
     const now = Date.now();
     const e = entry ? { ...entry } : { cat: sel.cat, place: sel.place, note: '', start: now - 3600000, end: now };
-    let cat = catById(e.cat).id, place = e.place, confirmDel = false;
+    let cat = catById(e.cat).id, place = e.place, confirmDel = false, noteAsked = false;
     function draw(err) {
       $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="edTitle">
         <h2 id="edTitle">${isNew ? 'Zeit nachtragen' : 'Eintrag korrigieren'}</h2>
@@ -849,6 +887,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         let end = new Date(y, mo - 1, da, th, tm).getTime();
         if (end <= start) end += DAY; // über Mitternacht
         if (end - start > 16 * 3600000) return draw('Ein Eintrag darf höchstens 16 Stunden lang sein. Bitte Beginn und Ende prüfen.');
+        if (cat === 'sonstiges' && !document.getElementById('edNote').value.trim() && !noteAsked) { noteAsked = true; e.note = ''; e._d = d; e._f = f; e._t = t; return draw('Bei „Sonstiges“ bitte kurz notieren, worum es geht. Nochmal „Speichern“ tippen, um ohne Notiz zu speichern.'); }
         const rec = { cat, place, note: document.getElementById('edNote').value.trim(), start, end };
         if (isNew) state.entries.push({ id: uid(), ...rec }); else Object.assign(entry, rec);
         save(); close(); render(); toast(isNew ? 'Zeit nachgetragen' : 'Änderung gespeichert');
