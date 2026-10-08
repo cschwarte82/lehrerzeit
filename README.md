@@ -6,7 +6,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Arbeitszeit per Start/Stopp erfassen, nach Tätigkeit (16 zur Auswahl, z. B. Unterricht, Vor-/Nachbereitung, Korrekturen, Lernzeit, Administration) und Ort (Schule/Zuhause)
 - Einträge nachträglich korrigieren oder nachtragen
 - Wochen-, Monats- und Schuljahressummen mit Soll und Saldo
-- Jahressoll (Standard 1886 h auf 40 Unterrichtswochen), Ferienwochen und freie Tage
+- Jahressoll (Standard 1805 h auf 40 Unterrichtswochen), Ferienwochen ohne Soll (Arbeit in den Ferien zählt als Plus) und freie Tage
 - Export als Excel-Datei
 - Fragt nach, wenn der Timer über 10 Stunden oder seit gestern läuft, und lässt das Ende direkt korrigieren
 - Die drei meistgenutzten Tätigkeiten stehen oben, der Ort wird direkt neben „Start“ gewählt
