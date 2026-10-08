@@ -8,6 +8,8 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Wochen-, Monats- und Schuljahressummen mit Soll und Saldo
 - Jahressoll (Standard 1886 h auf 40 Unterrichtswochen), Ferienwochen und freie Tage
 - Export als Excel-Datei
+- Fragt nach, wenn der Timer über 10 Stunden oder seit gestern läuft, und lässt das Ende direkt korrigieren
+- Die drei meistgenutzten Tätigkeiten stehen oben, der Ort wird direkt neben „Start“ gewählt
 
 ## Installieren
 - **iPhone (Safari):** Link öffnen → Teilen-Symbol → „Zum Home-Bildschirm“.
@@ -27,4 +29,4 @@ Alle Daten bleiben auf dem eigenen Gerät. Es gibt kein Konto und keinen Server,
 ## Einstellungen anpassen
 Oben rechts „Einstellungen“: Jahressoll, Unterrichtswochen, Beschäftigungsumfang (Teilzeit) und Schuljahresbeginn.
 Unter „Meine Tätigkeiten“ wählst du mindestens 4 der 15 Tätigkeiten aus, die du brauchst. Die anderen verschwinden aus der Auswahl, bereits erfasste Zeiten bleiben erhalten.
-Ferienwochen legst du unter „Auswertung → Schuljahr“ fest. Die NRW-Ferien 2026/27 sind bereits eingetragen.
+Ferienwochen legst du unter „Auswertung → Schuljahr“ fest. Die NRW-Ferien 2026/27 und 2027/28 sind bereits eingetragen.
