@@ -26,7 +26,7 @@
   --chalk: #e9b949;       /* Kreidegelb, nur für den laufenden Timer */
   --danger: #b4412f;
   --good: #2f7d4f;
-  --c1: #1f6b57; --c2: #2f6fd0; --c3: #d43d3d; --c4: #63b33a; --c5: #f08c00; --c6: #8f1d3f; --c7: #12a4c4; --c8: #e05fa8; --c9: #e2bd00; --c10: #0b2f5c; --c11: #6b7280; --c12: #7b3fe4; --c13: #222222; --c14: #c2c2c2; --c15: #8d5a2b; --c16: #7d8a00;
+  --c1: #1f6b57; --c2: #2f6fd0; --c3: #d43d3d; --c4: #63b33a; --c5: #f08c00; --c6: #8f1d3f; --c7: #12a4c4; --c8: #e05fa8; --c9: #e2bd00; --c10: #0b2f5c; --c11: #6b7280; --c12: #7b3fe4; --c13: #222222; --c14: #c2c2c2; --c15: #8d5a2b; --c16: #7d8a00; --c17: #00897b; --c18: #ff7a5c; --c19: #b39ddb; --c20: #c8b273;
   --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -35,12 +35,12 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #121916; --surface: #1a2420; --ink: #e6ece9; --muted: #9aaba4; --line: #2c3a35;
   --accent: #4fb092; --accent-ink: #0d1613; --chalk: #f0c75e; --danger: #e07a66; --good: #6cc08a;
-  --c1: #4fb092; --c2: #5b95f0; --c3: #f06a6a; --c4: #8fd66a; --c5: #ffa733; --c6: #d0607e; --c7: #4fd0e8; --c8: #f08cc4; --c9: #f5d63d; --c10: #c7d7f0; --c11: #9aa3ad; --c12: #a98cf5; --c13: #f2f2f2; --c14: #6f6f6f; --c15: #c9915a; --c16: #c3d14a;
+  --c1: #4fb092; --c2: #5b95f0; --c3: #f06a6a; --c4: #8fd66a; --c5: #ffa733; --c6: #d0607e; --c7: #4fd0e8; --c8: #f08cc4; --c9: #f5d63d; --c10: #c7d7f0; --c11: #9aa3ad; --c12: #a98cf5; --c13: #f2f2f2; --c14: #6f6f6f; --c15: #c9915a; --c16: #c3d14a; --c17: #4db6ac; --c18: #ff9e85; --c19: #cdbdf0; --c20: #ddd09a;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #121916; --surface: #1a2420; --ink: #e6ece9; --muted: #9aaba4; --line: #2c3a35;
   --accent: #4fb092; --accent-ink: #0d1613; --chalk: #f0c75e; --danger: #e07a66; --good: #6cc08a;
-  --c1: #4fb092; --c2: #5b95f0; --c3: #f06a6a; --c4: #8fd66a; --c5: #ffa733; --c6: #d0607e; --c7: #4fd0e8; --c8: #f08cc4; --c9: #f5d63d; --c10: #c7d7f0; --c11: #9aa3ad; --c12: #a98cf5; --c13: #f2f2f2; --c14: #6f6f6f; --c15: #c9915a; --c16: #c3d14a;
+  --c1: #4fb092; --c2: #5b95f0; --c3: #f06a6a; --c4: #8fd66a; --c5: #ffa733; --c6: #d0607e; --c7: #4fd0e8; --c8: #f08cc4; --c9: #f5d63d; --c10: #c7d7f0; --c11: #9aa3ad; --c12: #a98cf5; --c13: #f2f2f2; --c14: #6f6f6f; --c15: #c9915a; --c16: #c3d14a; --c17: #4db6ac; --c18: #ff9e85; --c19: #cdbdf0; --c20: #ddd09a;
   color-scheme: dark; }
 
 * { box-sizing: border-box; }
@@ -114,6 +114,7 @@ input[type=text], input[type=date], input[type=time], select { width: 100%; min-
 .day-head strong { font-family: var(--font-display); font-weight: 500; }
 .entry { display: grid; grid-template-columns: 4px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); text-align: left; width: 100%; }
 .ttbox { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 4px 0 8px; }
+.ownrow { display: flex; align-items: center; gap: 10px; margin: 4px 0; } .ownrow .ownname { flex: 1; } .ownrow .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
 .news { margin: 6px 0 10px; padding-left: 20px; } .news li { margin: 4px 0; }
 .entry .bar { align-self: stretch; border-radius: 2px; }
 .entry .main { min-width: 0; display: flex; flex-direction: column; }
@@ -213,7 +214,7 @@ input::-webkit-date-and-time-value { text-align: left; }
 
 <script>
 (() => {
-  const CATS = [
+  const BASE_CATS = [
     { id: 'unterricht', name: 'Unterricht', color: 'var(--c1)' },
     { id: 'vorbereitung', name: 'Vor-/Nach\u00ADbereitung', color: 'var(--c2)' },
     { id: 'lernzeit', name: 'Lernzeit', color: 'var(--c7)' },
@@ -236,15 +237,27 @@ input::-webkit-date-and-time-value { text-align: left; }
   const inClaude = !!(window.claude && typeof window.claude.use === 'function');
   // Frühere Kategorie „Nachbereitung“ ist in „Vor-/Nachbereitung“ aufgegangen
   const CAT_ALIAS = { nachbereitung: 'vorbereitung' };
-  const catById = id => CATS.find(c => c.id === (CAT_ALIAS[id] || id)) || CATS[CATS.length - 1];
+  // Eigene Tätigkeiten (höchstens MAX_OWN) stehen vor „Sonstiges“; gelöschte bleiben für alte Einträge erhalten (deleted: true)
+  const MAX_OWN = 4, OWN_COLORS = ['var(--c17)', 'var(--c18)', 'var(--c19)', 'var(--c20)'];
+  let CATS = BASE_CATS;
+  const ownCats = () => (Array.isArray(state.customCats) ? state.customCats : []);
+  // eigene Namen sind Nutzertext; esc() ist hier beim ersten Laden noch nicht definiert
+  function escName(t) { return String(t).replace(/[&<>"']/g, ch => '&#' + ch.charCodeAt(0) + ';'); }
+  function refreshCats() {
+    const own = ownCats().map(c => ({ id: c.id, name: escName(c.name), raw: c.name, color: OWN_COLORS[c.color % OWN_COLORS.length], own: true, deleted: !!c.deleted }));
+    CATS = [...BASE_CATS.slice(0, -1), ...own, BASE_CATS[BASE_CATS.length - 1]];
+  }
+  const selectable = () => CATS.filter(c => !c.deleted);
+  const catById = id => CATS.find(c => c.id === (CAT_ALIAS[id] || id)) || BASE_CATS[BASE_CATS.length - 1];
   // Eigene Auswahl (Einstellungen): mindestens 4 der vorgegebenen Tätigkeiten, ohne Auswahl alle
   const MIN_CATS = 4;
-  const activeCats = () => { const ids = state.settings && state.settings.cats; const l = Array.isArray(ids) ? CATS.filter(c => ids.includes(c.id)) : []; return l.length >= MIN_CATS ? l : CATS; };
+  const activeCats = () => { const ids = state.settings && state.settings.cats; const l = Array.isArray(ids) ? selectable().filter(c => ids.includes(c.id)) : []; return l.length >= MIN_CATS ? l : selectable(); };
   const firstActive = id => activeCats().some(c => c.id === id) ? id : activeCats()[0].id;
 
   // ---------- Storage ----------
   let state = { entries: [], running: null, lastCat: 'unterricht', lastPlace: 'schule' };
   try { const raw = localStorage.getItem(KEY); if (raw) state = Object.assign(state, JSON.parse(raw)); } catch (e) {}
+  refreshCats();
   // Jeder geänderte Eintrag bekommt einen Zeitstempel u (für den Abgleich zwischen Geräten)
   const bodyOf = e => { const { u, ...rest } = e; return JSON.stringify(rest); };
   let savedBodies = new Map(state.entries.map(e => [e.id, bodyOf(e)]));
@@ -294,6 +307,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     ] },
     { v: 3, items: [
       'Lücken füllen: Trägst du einen Tag nach, fragt die App bei jeder Lücke zwischen zwei Einträgen, ob du sie mit einer Tätigkeit füllen möchtest, z. B. die Pause mit „Kollegialer Austausch“. „Nicht füllen“ lässt die Lücke frei.',
+    ] },
+    { v: 4, items: [
+      'Eigene Tätigkeiten: Unter Einstellungen → Meine Tätigkeiten kannst du bis zu 4 eigene hinzufügen, z. B. „Ganztag“ oder „Sport-AG“.',
     ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
@@ -760,6 +776,8 @@ input::-webkit-date-and-time-value { text-align: left; }
       <span class="label">Meine Tätigkeiten</span>
       <div class="chips" id="stCats"></div>
       <p class="hint">Wähle mindestens ${MIN_CATS} aus. Abgewählte Tätigkeiten verschwinden aus der Auswahl beim Erfassen; bereits erfasste Zeiten bleiben erhalten.</p>
+      <span class="label">Eigene Tätigkeiten (höchstens ${MAX_OWN})</span>
+      <div id="stOwn"></div>
       <span class="label">Mein Stundenplan (nur fürs Nachtragen)</span>
       <p class="hint">Freiwillig. Trag deine Unterrichtszeiten ein, z. B. „7:45–13:05“ oder mit Freistunde „7:45–9:20, 10:05–13:05“. Beim Nachtragen eines Tages kannst du sie dann mit einem Tipp einfügen und danach jeden Block noch ändern.</p>
       ${TT_DAYS.map(([d, n]) => `<div class="field"><label class="label" for="stTT${d}">${n}</label><input type="text" id="stTT${d}" value="${ttText(state.timetable && state.timetable[d])}" placeholder="z. B. 7:45–13:05"></div>`).join('')}
@@ -773,16 +791,41 @@ input::-webkit-date-and-time-value { text-align: left; }
     };
     ['stYearly', 'stWeeks', 'stPct'].forEach(id => document.getElementById(id).oninput = preview); preview();
     const cats = new Set(activeCats().map(c => c.id));
+    let own = ownCats().map(c => ({ ...c }));
+    const used = id => state.entries.some(e => e.cat === id) || (state.running && state.running.cat === id);
+    const listCats = () => [...BASE_CATS.slice(0, -1), ...own.filter(c => !c.deleted).map(c => ({ id: c.id, name: esc(c.name), color: OWN_COLORS[c.color % OWN_COLORS.length] })), BASE_CATS[BASE_CATS.length - 1]];
+    const drawOwn = (msg) => {
+      const box = document.getElementById('stOwn'), live = own.filter(c => !c.deleted);
+      box.innerHTML = `${live.map(c => `<div class="ownrow"><span class="sw" style="background:${OWN_COLORS[c.color % OWN_COLORS.length]}"></span><span class="ownname">${esc(c.name)}</span><button class="btn ghost" data-owndel="${c.id}">Entfernen</button></div>`).join('')}
+        ${live.length < MAX_OWN ? `<div class="row"><input type="text" id="stOwnName" maxlength="30" placeholder="z. B. Bibliothek, Ganztag, Sport-AG"><button class="btn" id="stOwnAdd">Hinzufügen</button></div>` : ''}
+        ${msg ? `<p class="warn">${msg}</p>` : `<p class="hint">Eigene Tätigkeiten erscheinen beim Erfassen, in der Auswertung und im Excel-Export. Entfernst du eine, bleiben ihre Einträge erhalten.</p>`}`;
+      box.querySelectorAll('[data-owndel]').forEach(b => b.onclick = () => {
+        const id = b.dataset.owndel;
+        if (cats.has(id) && cats.size <= MIN_CATS) return drawOwn(`Mindestens ${MIN_CATS} Tätigkeiten müssen ausgewählt bleiben.`);
+        cats.delete(id);
+        own = used(id) ? own.map(c => c.id === id ? { ...c, deleted: true } : c) : own.filter(c => c.id !== id);
+        drawCats(); drawOwn();
+      });
+      const add = document.getElementById('stOwnAdd'); if (add) add.onclick = () => {
+        const name = document.getElementById('stOwnName').value.trim().replace(/\s+/g, ' ');
+        if (!name) return drawOwn('Bitte einen Namen eingeben.');
+        if (listCats().some(c => plain(c.raw || c.name).toLowerCase() === name.toLowerCase())) return drawOwn('Diese Tätigkeit gibt es schon.');
+        const taken = new Set(own.filter(c => !c.deleted).map(c => c.color));
+        const color = [0, 1, 2, 3].find(i => !taken.has(i));
+        const c = { id: 'own-' + uid(), name, color };
+        own.push(c); cats.add(c.id); drawCats(); drawOwn();
+      };
+    };
     const drawCats = () => {
       const box = document.getElementById('stCats');
-      box.innerHTML = CATS.map(c => `<button class="chip" data-stcat="${c.id}" aria-pressed="${cats.has(c.id)}"><span class="sw" style="background:${c.color}"></span>${c.name}</button>`).join('');
+      box.innerHTML = listCats().map(c => `<button class="chip" data-stcat="${c.id}" aria-pressed="${cats.has(c.id)}"><span class="sw" style="background:${c.color}"></span>${c.name}</button>`).join('');
       box.querySelectorAll('[data-stcat]').forEach(b => b.onclick = () => {
         const id = b.dataset.stcat;
         if (cats.has(id)) { if (cats.size <= MIN_CATS) { toast(`Mindestens ${MIN_CATS} Tätigkeiten`); return; } cats.delete(id); } else cats.add(id);
         drawCats();
       });
     };
-    drawCats();
+    drawCats(); drawOwn();
     document.getElementById('stCancel').onclick = close;
     document.getElementById('ov').onclick = ev => { if (ev.target.id === 'ov') close(); };
     document.getElementById('stSave').onclick = () => {
@@ -802,7 +845,8 @@ input::-webkit-date-and-time-value { text-align: left; }
       }
       state.timetable = Object.keys(tt).length ? tt : null;
       state.settings = { yearly: y, weeks: w, pct: p, since: since || null, yearStart: `${pad(+ys[2])}-${pad(+ys[1])}` };
-      if (cats.size < CATS.length) state.settings.cats = CATS.filter(c => cats.has(c.id)).map(c => c.id);
+      state.customCats = own.length ? own : null; refreshCats();
+      if (cats.size < selectable().length) state.settings.cats = selectable().filter(c => cats.has(c.id)).map(c => c.id);
       sel.cat = firstActive(sel.cat);
       save(); close(); render(); toast('Einstellungen gespeichert');
     };
@@ -862,19 +906,20 @@ input::-webkit-date-and-time-value { text-align: left; }
     X.utils.book_append_sheet(wb, sheet(rows, { 0: 'dd\\.mm\\.yyyy', 3: 'hh:mm', 4: 'hh:mm', 5: '[h]:mm', 6: '0.00' }, [12, 5, 5, 8, 8, 8, 9, 22, 10, 40]), 'Einträge');
 
     // Wochen
-    const wk = [['KW', 'Von', 'Bis', 'Art', 'Ist', 'Soll', 'Saldo', 'Schule', 'Zuhause', ...CATS.map(c => plain(c.name))]];
+    const XCATS = CATS.filter(c => !c.deleted || state.entries.some(e => e.cat === c.id));
+    const wk = [['KW', 'Von', 'Bis', 'Art', 'Ist', 'Soll', 'Saldo', 'Schule', 'Zuhause', ...XCATS.map(c => plain(c.raw || c.name))]];
     for (let w = startOfWeek(from); w < to; w = addDays(w, 7)) {
       const a = Math.max(w, from), b = Math.min(addDays(w, 7), to), x = sumRange(a, b), so = sollRange(a, b);
-      wk.push([isoWeek(w).week, xlDate(a), xlDate(addDays(b, -1)), isHoliday(w) ? 'Ferien' : 'Unterricht', hrs(x.total), hrs(so), hrs(x.total - so), hrs(x.byPlace.schule), hrs(x.byPlace.zuhause), ...CATS.map(c => hrs(x.byCat[c.id] || 0))]);
+      wk.push([isoWeek(w).week, xlDate(a), xlDate(addDays(b, -1)), isHoliday(w) ? 'Ferien' : 'Unterricht', hrs(x.total), hrs(so), hrs(x.total - so), hrs(x.byPlace.schule), hrs(x.byPlace.zuhause), ...XCATS.map(c => hrs(x.byCat[c.id] || 0))]);
     }
     const wf = { 1: 'dd\\.mm\\.yyyy', 2: 'dd\\.mm\\.yyyy' }; for (let c = 4; c < wk[0].length; c++) wf[c] = '0.00'; wf[6] = '+0.00;-0.00;0.00';
-    X.utils.book_append_sheet(wb, sheet(wk, wf, [5, 11, 11, 10, 8, 8, 8, 8, 8, ...CATS.map(c => Math.max(9, plain(c.name).length + 1))]), 'Wochen');
+    X.utils.book_append_sheet(wb, sheet(wk, wf, [5, 11, 11, 10, 8, 8, 8, 8, 8, ...XCATS.map(c => Math.max(9, plain(c.raw || c.name).length + 1))]), 'Wochen');
 
     // Tätigkeiten
-    const per = {}; for (const c of CATS) per[c.id] = { schule: 0, zuhause: 0 };
+    const per = {}; for (const c of XCATS) per[c.id] = { schule: 0, zuhause: 0 };
     for (const e of entries) per[catById(e.cat).id][e.place] += overlap(e, from, to);
     const tt = [['Tätigkeit', 'Schule', 'Zuhause', 'Gesamt', 'Anteil']];
-    for (const c of CATS) { const g = per[c.id].schule + per[c.id].zuhause; tt.push([plain(c.name), hrs(per[c.id].schule), hrs(per[c.id].zuhause), hrs(g), s.total ? g / s.total : 0]); }
+    for (const c of XCATS) { const g = per[c.id].schule + per[c.id].zuhause; tt.push([plain(c.raw || c.name), hrs(per[c.id].schule), hrs(per[c.id].zuhause), hrs(g), s.total ? g / s.total : 0]); }
     tt.push(['Summe', hrs(s.byPlace.schule), hrs(s.byPlace.zuhause), hrs(s.total), s.total ? 1 : 0]);
     X.utils.book_append_sheet(wb, sheet(tt, { 1: '0.00', 2: '0.00', 3: '0.00', 4: '0%' }, [22, 9, 9, 9, 8]), 'Tätigkeiten');
 
@@ -1035,6 +1080,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     render(); window.scrollTo(0, 0);
   }
   function render() {
+    refreshCats();
     const d = new Date(); const { week } = isoWeek(d);
     document.getElementById('todayLabel').textContent = `${fmtDay(d)} · KW ${week}`;
     if (view === 'erfassen') renderErfassen(); else if (view === 'eintraege') renderEintraege(); else renderAuswertung();
@@ -1046,7 +1092,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   // ---------- Abgleich zwischen Geräten (nur in claude.ai, private Daten des angemeldeten Nutzers) ----------
   // Ablage: data/users/<id>/meta (Einstellungen, Ferien, laufender Timer) und data/users/<id>/m-JJJJ-MM (Einträge des Monats).
   // Gelöschte Einträge bleiben als {deleted:true} stehen, damit andere Geräte sie ebenfalls entfernen.
-  const META_KEYS = ['settings', 'offDays', 'holidayWeeks', 'presets', 'running', 'lastCat', 'lastPlace', 'timetable'];
+  const META_KEYS = ['settings', 'offDays', 'holidayWeeks', 'presets', 'running', 'lastCat', 'lastPlace', 'timetable', 'customCats'];
   const metaOf = () => { const m = {}; for (const k of META_KEYS) m[k] = state[k] === undefined ? null : state[k]; return m; };
   const canon = v => v === null || typeof v !== 'object' ? JSON.stringify(v) : Array.isArray(v) ? '[' + v.map(canon).join(',') + ']' : '{' + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
   const monthKey = t => { const d = new Date(t); return `m-${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
@@ -1163,6 +1209,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     for (const k of ['offDays', 'holidayWeeks']) if (data[k]) state[k] = Object.assign({}, data[k], state[k] || {});
     if (data.settings && !state.settings) state.settings = data.settings;
     if (data.timetable && !state.timetable) state.timetable = data.timetable;
+    if (Array.isArray(data.customCats)) { const have = new Set(ownCats().map(c => c.id)); state.customCats = [...ownCats(), ...data.customCats.filter(c => c && c.id && !have.has(c.id))]; }
     const exported = Date.parse(data.exportedAt); if (exported) state.lastBackup = Math.max(state.lastBackup || 0, exported);
     savedBodies = new Map(state.entries.map(e => [e.id, bodyOf(e)]));
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
