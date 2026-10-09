@@ -602,13 +602,23 @@ input::-webkit-date-and-time-value { text-align: left; }
     const days = [];
     for (let i = 0; i < 7; i++) {
       const d = addDays(from, i), H = 3600000;
-      const blocks = [];
-      for (const e of allEntries().filter(x => x.start >= d && x.start < addDays(d, 1))) {
+      // je Tagesabschnitt von der unteren Linie aus stapeln (zeitliche Reihenfolge); frühe Arbeit vor 6 Uhr zählt zur Nacht
+      const zoneOf = h => h < 6 || h >= 22 ? 3 : h < 12 ? 0 : h < 17 ? 1 : 2;
+      const fill = [0, 0, 0, 0], blocks = [];
+      const cuts = [0, 6, 12, 17, 22, 30];
+      for (const e of allEntries().filter(x => x.start >= d && x.start < addDays(d, 1)).sort((x, y) => x.start - y.start)) {
         const a = (e.start - d) / H, b = Math.min((e.end - d) / H, 30), c = catById(e.cat).color;
-        const parts = a < 6 ? [[a + 24, Math.min(b, 6) + 24], ...(b > 6 ? [[6, b]] : [])] : [[a, b]];
-        for (const [pa, pb] of parts) if (pb > pa) blocks.push(`<i class="blk" style="bottom:${pos(pa)}%;height:${pos(pb) - pos(pa)}%;background:${c}"></i>`);
+        for (let k = 0; k < cuts.length - 1; k++) {
+          const pa = Math.max(a, cuts[k]), pb = Math.min(b, cuts[k + 1]); if (pb <= pa) continue;
+          const z = zoneOf(pa), base = TZ[z].a, len = Math.min(pb - pa, TZ[z].b - TZ[z].a - fill[z]);
+          if (len > 0) blocks.push(`<i class="blk" style="bottom:${pos(base + fill[z])}%;height:${len / 24 * 100}%;background:${c}"></i>`);
+          fill[z] += Math.max(0, len);
+        }
       }
-      const core = coreFor(d).map(([a, b]) => `<i class="core" style="bottom:${pos(a / 60)}%;height:${(b - a) / 60 / 24 * 100}%"></i>`).join('');
+      const core = TZ.map((z, k) => {
+        const len = coreFor(d).reduce((sum, [ca, cb]) => sum + Math.max(0, Math.min(cb / 60, z.b) - Math.max(ca / 60, z.a)), 0);
+        return len ? `<i class="core" style="bottom:${pos(z.a)}%;height:${len / 24 * 100}%"></i>` : '';
+      }).join('');
       days.push(`<button class="day" data-day="${d}" aria-label="${fmtDay(d)}: Einträge ansehen">${core}${blocks.join('')}</button>`);
     }
     return `<div class="tl">
