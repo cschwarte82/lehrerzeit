@@ -7,6 +7,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Einträge nachträglich korrigieren oder nachtragen; warnt bei Überschneidungen, Löschen lässt sich kurz rückgängig machen
 - Wochen-, Monats- und Schuljahressummen mit Soll und Saldo; in der Wochengrafik einen Tag antippen, um dort direkt nachzutragen oder zu korrigieren
 - Tagesverlauf je Woche und Auswertung nach Tageszeit (Vormittag, Nachmittag, Abend, Nacht), optional mit eigener Kernarbeitszeit
+- Timer rundet beim Stoppen auf volle Minuten (ab 30 Sekunden auf)
 - Jahressoll (Standard 1805 h auf 40 Unterrichtswochen), Ferienwochen ohne Soll (Arbeit in den Ferien zählt als Plus) und freie Tage
 - Export als Excel-Datei
 - Fragt nach, wenn der Timer über 10 Stunden oder seit gestern läuft, und lässt das Ende direkt korrigieren

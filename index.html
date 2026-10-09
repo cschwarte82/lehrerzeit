@@ -360,6 +360,9 @@ input::-webkit-date-and-time-value { text-align: left; }
       'Nach Tageszeit: Woche, Monat und Schuljahr zeigen, wie viele Stunden auf Vormittag (6–12 Uhr), Nachmittag (12–17), Abend (17–22) und Nacht (22–6) fallen.',
       'Kernarbeitszeit: Unter Einstellungen kannst du sie je Wochentag eintragen. Sie erscheint grau im Tagesverlauf, und die App zeigt, wie viel du außerhalb davon arbeitest.',
     ] },
+    { v: 8, items: [
+      'Beim Stoppen wird auf volle Minuten gerundet: bis 29 Sekunden ab, ab 30 Sekunden auf. 5:24 werden also 5 Minuten, 5:30 werden 6 Minuten.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -389,7 +392,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     return { week: 1 + Math.round(((d - w1) / DAY - 3 + (w1.getDay() + 6) % 7) / 7), year: d.getFullYear() };
   };
   const fmtDur = ms => { const m = Math.round(ms / 60000); return `${Math.floor(m / 60)}:${pad(m % 60)}`; };
-  const fmtClock = ms => { const s = Math.floor(ms / 1000); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`; };
+  const fmtClock = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`; };
   const fmtTime = t => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
   const fmtDateInput = t => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
   const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
@@ -403,7 +406,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   const overlap = (e, from, to) => Math.max(0, Math.min(e.end, to) - Math.max(e.start, from));
   function allEntries() {
     const list = state.entries.slice();
-    if (state.running) list.push({ ...state.running, id: 'running', end: Date.now(), live: true });
+    if (state.running) list.push({ ...state.running, id: 'running', end: Math.max(Date.now(), state.running.start), live: true });
     return list;
   }
   function sumRange(from, to) {
@@ -439,22 +442,25 @@ input::-webkit-date-and-time-value { text-align: left; }
   // ---------- Timer actions ----------
   let noteWarn = false;
   const LONG_RUN = 10 * 3600000;
-  function startTimer() {
+  function startTimer(startAt) {
     if (sel.cat === 'sonstiges' && !sel.note.trim() && !noteWarn) { noteWarn = true; render(); const n = document.getElementById('noteIn'); if (n) n.focus(); return; }
     noteWarn = false;
-    state.running = { cat: sel.cat, place: sel.place, note: sel.note.trim(), start: Date.now() };
+    state.running = { cat: sel.cat, place: sel.place, note: sel.note.trim(), start: startAt || Date.now() };
     state.lastCat = sel.cat; state.lastPlace = sel.place; save(); render();
     if (storageSafe === false) protectStorage();
   }
+  // Beim Stoppen auf volle Minuten runden: bis 29 s ab, ab 30 s auf
   function stopTimer(silent) {
     const r = state.running; if (!r) return;
-    const end = Date.now();
+    const end = r.start + Math.max(0, Math.round((Date.now() - r.start) / 60000)) * 60000;
     if (end - r.start >= 60000) { state.entries.push({ id: uid(), cat: r.cat, place: r.place, note: r.note, start: r.start, end }); if (!silent) toast(`Gespeichert: ${catById(r.cat).name}, ${fmtDur(end - r.start)} h`); }
     else if (!silent) toast('Unter einer Minute, nicht gespeichert');
     state.running = null; sel.note = ''; save(); render();
+    return end;
   }
   function switchTo(cat) {
-    stopTimer(true); sel.cat = cat; startTimer(); toast(`Gewechselt zu ${catById(cat).name}`);
+    // nächste Tätigkeit beginnt am gerundeten Ende, so geht keine Sekunde verloren
+    const end = stopTimer(true); sel.cat = cat; startTimer(end); toast(`Gewechselt zu ${catById(cat).name}`);
   }
 
   // ---------- Views ----------
@@ -527,7 +533,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     $view.querySelectorAll('[data-place]').forEach(b => b.onclick = () => { sel.place = b.dataset.place; render(); });
     $view.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => { if (b.dataset.switch !== r.cat) switchTo(b.dataset.switch); });
     const note = document.getElementById('noteIn'); if (note) note.oninput = () => sel.note = note.value;
-    const sb = document.getElementById('startBtn'); if (sb) sb.onclick = startTimer;
+    const sb = document.getElementById('startBtn'); if (sb) sb.onclick = () => startTimer();
     const st = document.getElementById('stopBtn'); if (st) st.onclick = () => stopTimer(false);
     const lo = document.getElementById('lrOk'); if (lo) lo.onclick = () => { state.running.okUntil = Date.now() + 4 * 3600000; save(); render(); };
     const ls = document.getElementById('lrSave'); if (ls) ls.onclick = () => {
