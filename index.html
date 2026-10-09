@@ -113,6 +113,7 @@ input[type=text], input[type=date], input[type=time], select { width: 100%; min-
 .day-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-top: 6px; }
 .day-head strong { font-family: var(--font-display); font-weight: 500; }
 .entry { display: grid; grid-template-columns: 4px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); text-align: left; width: 100%; }
+.news { margin: 6px 0 10px; padding-left: 20px; } .news li { margin: 4px 0; }
 .entry .bar { align-self: stretch; border-radius: 2px; }
 .entry .main { min-width: 0; display: flex; flex-direction: column; }
 .entry .main span:first-child { font-weight: 600; }
@@ -262,6 +263,18 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
   // Bis Okt. 2026 war 1886 h voreingestellt; bestehende Installationen behalten ihr bisheriges Soll
   if (state.entries.length && !(state.settings && state.settings.yearly)) { state.settings = Object.assign({}, state.settings, { yearly: 1886 }); save(); }
+  // „Was ist neu“: bei jedem Update einen Eintrag mit höherem v ergänzen
+  const CHANGES = [
+    { v: 1, items: [
+      'Neue Tätigkeit „Klassen-/Schulveranstaltung“. Wer eine eigene Auswahl hat, nimmt sie unter Einstellungen → Meine Tätigkeiten dazu.',
+      'Die Einstellungen erklären jetzt, wie Jahressoll, Unterrichtswochen und Ferien zusammenhängen. Neuer Standard für Vollzeit: 1805\u00A0h. Dein bisheriges Jahressoll bleibt unverändert.',
+      'Die NRW-Ferien 2027/28 sind eingetragen.',
+      'Läuft der Timer länger als 10 Stunden, fragt die App nach, ob er noch laufen soll.',
+      'Die meistgenutzten Tätigkeiten stehen oben, der Ort steht direkt neben dem Start-Knopf.',
+    ] },
+  ];
+  const APP_V = CHANGES[CHANGES.length - 1].v;
+  if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
   // Ferienwochen NRW (Wochen mit mindestens drei Ferientagen, Montag als Schlüssel)
   const HOLIDAY_PRESETS = {
     'nrw-2026-27': { label: 'NRW 2026/27', weeks: ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-10-19', '2026-10-26', '2026-12-21', '2026-12-28', '2027-03-22', '2027-03-29', '2027-07-19', '2027-07-26'] },
@@ -412,6 +425,9 @@ input::-webkit-date-and-time-value { text-align: left; }
       <div class="row"><label class="btn primary" for="restFile" style="display:inline-flex;align-items:center">Sicherung einlesen</label><input type="file" id="restFile" accept="${BACKUP_ACCEPT}" hidden><button class="btn ghost" id="restNo">Neu anfangen</button></div></section>` + html;
     else if (backupDue()) html = `<section class="panel remind"><p><b>Zeit für die wöchentliche Sicherung.</b> Deine Daten liegen nur auf diesem Gerät. ${shareMode() ? 'Tippe auf „Sicherung speichern“ und wähle im Teilen-Menü „In Dateien sichern“, dann iCloud Drive oder OneDrive.' : 'Speichere die Sicherungsdatei zum Beispiel in deinem OneDrive- oder iCloud-Ordner.'}</p>
       <div class="row"><button class="btn primary" id="remSave">Sicherung speichern</button><button class="btn ghost" id="remLater">Morgen erinnern</button></div></section>` + html;
+    const news = CHANGES.filter(c => c.v > state.seenV).flatMap(c => c.items);
+    if (news.length) html = `<section class="panel remind"><p><b>Neu in der App</b></p><ul class="news">${news.map(t => `<li>${t}</li>`).join('')}</ul>
+      <div class="row"><button class="btn primary" id="newsOk">Alles klar</button></div></section>` + html;
     $view.innerHTML = html;
 
     $view.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { sel.cat = b.dataset.cat; noteWarn = false; render(); });
@@ -435,6 +451,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     const rs = document.getElementById('remSave'); if (rs) rs.onclick = saveBackup;
     const rl = document.getElementById('remLater'); if (rl) rl.onclick = () => { state.backupSnooze = Date.now() + DAY; save(); render(); };
     const rf = document.getElementById('restFile'); if (rf) rf.onchange = readBackupInput;
+    const no = document.getElementById('newsOk'); if (no) no.onclick = () => { state.seenV = APP_V; save(); render(); };
     const rn = document.getElementById('restNo'); if (rn) rn.onclick = () => { state.restoreDismissed = true; save(); render(); };
     bindEntries();
   }
