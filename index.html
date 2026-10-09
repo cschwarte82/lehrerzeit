@@ -138,6 +138,9 @@ input[type=text], input[type=date], input[type=time], select { width: 100%; min-
 .bars .stack { width: 100%; max-width: 42px; display: flex; flex-direction: column-reverse; border-radius: 6px 6px 2px 2px; overflow: hidden; background: color-mix(in srgb, var(--line) 50%, transparent); min-height: 2px; }
 .bars .val { font-family: var(--font-num); font-size: .72rem; color: var(--muted); white-space: nowrap; }
 .bars .lbl { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.bars button.col { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; border-radius: 8px; }
+.bars button.col .lbl { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.bars button.col:active .stack { opacity: .7; }
 .catlist { display: flex; flex-direction: column; gap: 8px; }
 .catrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; }
 .catrow .name { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -310,6 +313,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     ] },
     { v: 4, items: [
       'Eigene Tätigkeiten: Unter Einstellungen → Meine Tätigkeiten kannst du bis zu 4 eigene hinzufügen, z. B. „Ganztag“ oder „Sport-AG“.',
+    ] },
+    { v: 5, items: [
+      'Auswertung → Woche: Tipp auf einen Wochentag in der Grafik. Dann siehst du die Einträge des Tages, kannst sie korrigieren, Zeit nachtragen oder Lücken füllen.',
     ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
@@ -545,9 +551,9 @@ input::-webkit-date-and-time-value { text-align: left; }
   function barsHTML(cols) {
     const max = Math.max(3600000, ...cols.map(c => c.total));
     return `<div class="bars" style="--n:${cols.length}">${cols.map(col => `
-      <div class="col"><span class="val">${col.total ? fmtDur(col.total) : ''}</span>
+      <${col.day != null ? `button class="col" data-day="${col.day}" aria-label="${col.label}: Einträge ansehen oder nachtragen"` : 'div class="col"'}><span class="val">${col.total ? fmtDur(col.total) : ''}</span>
       <div class="stack" style="height:${col.total / max * 100}%">${CATS.filter(c => col.byCat[c.id]).map(c => `<i style="display:block;background:${c.color};height:${col.byCat[c.id] / col.total * 100}%"></i>`).join('')}</div>
-      <span class="lbl">${col.label}</span></div>`).join('')}</div>`;
+      <span class="lbl">${col.label}</span></${col.day != null ? 'button' : 'div'}>`).join('')}</div>`;
   }
 
   // ---------- Soll (Jahresarbeitszeit, verteilt auf Unterrichtswochen) ----------
@@ -614,7 +620,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       const s = sumRange(from, to);
       const hol = isHoliday(from);
       const cols = [];
-      for (let i = 0; i < 7; i++) { const d = addDays(from, i); const x = sumRange(d, addDays(d, 1)); cols.push({ label: WD[new Date(d).getDay()], ...x }); }
+      for (let i = 0; i < 7; i++) { const d = addDays(from, i); const x = sumRange(d, addDays(d, 1)); cols.push({ label: WD[new Date(d).getDay()], day: d, ...x }); }
       const days = [0, 1, 2, 3, 4].map(i => addDays(from, i));
       html += `<section class="panel">
         <div class="periodnav"><button class="btn" data-nav="-1" aria-label="Vorige Woche">‹</button>
@@ -623,6 +629,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         ${sollHTML(s.total, from, to)}
         <div class="split"><span>Schule <b>${fmtDur(s.byPlace.schule)} h</b></span><span>Zuhause <b>${fmtDur(s.byPlace.zuhause)} h</b></span></div>
         ${barsHTML(cols)}
+        <p class="hint" style="text-align:center;margin-top:4px">Wochentag antippen, um Zeiten nachzutragen oder zu korrigieren.</p>
         <div class="offdays">
           <div class="seg" role="group" aria-label="Art der Woche"><button data-hw="0" aria-pressed="${!hol}">Unterrichtswoche</button><button data-hw="1" aria-pressed="${hol}">Ferienwoche</button></div>
           ${hol ? `<p class="hint">Ferienwochen haben kein Soll. Was du hier arbeitest, zählt trotzdem für dein Jahreskonto.</p>` : `
@@ -714,6 +721,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       render();
     });
     $view.querySelectorAll('[data-off]').forEach(b => b.onclick = () => openOffDay(b.dataset.off));
+    $view.querySelectorAll('[data-day]').forEach(b => b.onclick = () => openDay(+b.dataset.day));
     $view.querySelectorAll('[data-hw]').forEach(b => b.onclick = () => { if ((b.dataset.hw === '1') !== isHoliday(from)) toggleHoliday(keyOf(from)); });
     $view.querySelectorAll('[data-hwk]').forEach(b => b.onclick = () => toggleHoliday(b.dataset.hwk));
     const pn = document.getElementById('presetNRW'); if (pn) pn.onclick = () => { applyPreset('nrw-' + schoolYearLabel(from).replace('/', '-')); render(); toast('NRW-Ferien eingetragen'); };
@@ -949,10 +957,33 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
 
   // ---------- Editor ----------
-  function openEditor(entry) {
+  // Tag aus der Wochengrafik: Einträge ansehen, korrigieren, nachtragen
+  function openDay(day) {
+    const list = state.entries.filter(x => x.end > day && x.start < day + DAY).sort((a, b) => a.start - b.start);
+    const tot = list.reduce((s, x) => s + Math.min(x.end, day + DAY) - Math.max(x.start, day), 0);
+    const gaps = dayGaps(day);
+    $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dyTitle">
+      <div class="day-head"><h2 id="dyTitle">${fmtDay(day)}</h2><span class="num">${fmtDur(tot)} h</span></div>
+      ${list.length ? `<div style="display:grid;gap:6px;margin:8px 0 4px">${list.map(entryHTML).join('')}</div><p class="hint">Eintrag antippen, um ihn zu korrigieren.</p>` : '<p class="hint">An diesem Tag ist noch nichts eingetragen.</p>'}
+      <div class="actions">
+        <div>${gaps.length ? `<button class="btn" id="dyGaps">Lücken füllen (${gaps.length})</button>` : ''}</div>
+        <div><button class="btn" id="dyClose">Schließen</button><button class="btn primary" id="dyAdd">Zeit nachtragen</button></div>
+      </div></div></div>`;
+    $modal.querySelectorAll('[data-entry]').forEach(b => b.onclick = () => openEditor(state.entries.find(x => x.id === b.dataset.entry)));
+    document.getElementById('dyAdd').onclick = () => openEditor(null, day);
+    document.getElementById('dyClose').onclick = close;
+    document.getElementById('ov').onclick = ev => { if (ev.target.id === 'ov') close(); };
+    const g = document.getElementById('dyGaps'); if (g) g.onclick = () => askGaps(day);
+  }
+  function openEditor(entry, day) {
     const isNew = !entry;
     const now = Date.now();
-    const e = entry ? { ...entry } : { cat: sel.cat, place: sel.place, note: '', start: now - 3600000, end: now };
+    let st = now - 3600000, en = now;
+    if (isNew && day != null) { // Nachtrag für einen bestimmten Tag: hinter dem letzten Eintrag weitermachen
+      const last = Math.max(0, ...state.entries.filter(x => x.end > day && x.end <= day + DAY).map(x => x.end));
+      st = last || day + 7.5 * 3600000; en = Math.min(st + 3600000, day + DAY - 60000);
+    }
+    const e = entry ? { ...entry } : { cat: sel.cat, place: sel.place, note: '', start: st, end: en };
     let cat = catById(e.cat).id, place = e.place, confirmDel = false, noteAsked = false;
     const dayTs = () => { const d = e._d || fmtDateInput(e.start); const [y, mo, da] = d.split('-').map(Number); return new Date(y, mo - 1, da).getTime(); };
     const ttDay = () => ttFor(dayTs());
