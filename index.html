@@ -320,7 +320,6 @@ input::-webkit-date-and-time-value { text-align: left; }
       'Auswertung → Woche: Tipp auf einen Wochentag in der Grafik. Dann siehst du die Einträge des Tages, kannst sie korrigieren, Zeit nachtragen oder Lücken füllen.',
     ] },
     { v: 6, items: [
-      'Monatsnachweis als PDF: Unter Auswertung → Monat erstellst du eine Seite mit allen Tagen, Ist, Soll, Saldo und den Tätigkeiten. Deinen Namen dafür trägst du unter Einstellungen ein.',
       'Überschneidet sich eine nachgetragene Zeit mit einem bestehenden Eintrag, weist die App beim Speichern darauf hin.',
       'Eintrag aus Versehen gelöscht? Für einige Sekunden erscheint „Rückgängig“.',
     ] },
@@ -718,10 +717,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     }
     const st = settings();
     html += `<section class="panel">
-      <h2>${period === 'monat' ? 'Nachweis und Excel-Export' : 'Excel-Export'}</h2>
+      <h2>Excel-Export</h2>
       <p class="hint">Enthält alle Einträge, Wochensummen mit Soll und Saldo sowie die Summen nach Tätigkeit.</p>
-      ${period === 'monat' ? `<div class="row"><button class="btn primary" id="pdfMonth">Monatsnachweis als PDF</button></div><p class="hint">Eine Seite mit allen Tagen, Ist, Soll und Saldo sowie den Tätigkeiten, z. B. zum Ausdrucken oder Abgeben.</p>` : ''}
-      <div class="row"><button class="btn ${period === 'monat' ? '' : 'primary'}" id="xlsPeriod">${period === 'woche' ? 'Diese Woche' : period === 'monat' ? 'Diesen Monat' : 'Dieses Schuljahr'} exportieren</button><button class="btn" id="xlsAll">Alles exportieren</button></div>
+      <div class="row"><button class="btn primary" id="xlsPeriod">${period === 'woche' ? 'Diese Woche' : period === 'monat' ? 'Diesen Monat' : 'Dieses Schuljahr'} exportieren</button><button class="btn" id="xlsAll">Alles exportieren</button></div>
       <div class="row" style="justify-content:space-between"><p class="hint" style="flex:1 1 200px">Soll: ${fmtNum(st.yearly)} h im Jahr${st.pct !== 100 ? ` bei ${fmtNum(st.pct)} %` : ''} auf ${fmtNum(st.weeks)} Unterrichtswochen, also ${fmtNum(weeklySoll() / 3600000)} h pro Unterrichtswoche (${fmtDur(dailySoll())} h pro Tag).</p><button class="btn ghost" id="openSettings2">Soll ändern</button></div>
     </section>`;
     $view.innerHTML = html;
@@ -740,7 +738,6 @@ input::-webkit-date-and-time-value { text-align: left; }
     const pn = document.getElementById('presetNRW'); if (pn) pn.onclick = () => { applyPreset('nrw-' + schoolYearLabel(from).replace('/', '-')); render(); toast('NRW-Ferien eingetragen'); };
     const ch = document.getElementById('clearHol'); if (ch) ch.onclick = () => { state.holidayWeeks = state.holidayWeeks || {}; for (const w of yearWeeks) if (state.holidayWeeks[keyOf(w)]) state.holidayWeeks[keyOf(w)] = false; save(); render(); toast('Markierungen in diesem Schuljahr entfernt'); };
     document.getElementById('xlsPeriod').onclick = () => exportExcel(from, to, label);
-    const pm = document.getElementById('pdfMonth'); if (pm) pm.onclick = () => exportMonthPDF(from, to);
     document.getElementById('xlsAll').onclick = () => {
       const first = state.entries.reduce((a, e) => Math.min(a, e.start), Infinity);
       const last = state.entries.reduce((a, e) => Math.max(a, e.end), Date.now());
@@ -783,8 +780,6 @@ input::-webkit-date-and-time-value { text-align: left; }
         <div class="field"><label class="label" for="stWeeks">Unterrichtswochen</label>
           <input type="text" inputmode="decimal" id="stWeeks" value="${fmtNum(st.weeks)}"></div>
       </div>
-      <div class="field"><label class="label" for="stName">Name für den Monatsnachweis (freiwillig)</label>
-        <input type="text" id="stName" value="${esc(st.name || '')}" autocomplete="name"></div>
       <p class="hint">So rechnet die App: Das Jahressoll (Vollzeit 1805 h, also rund 41 h pro Woche nach Abzug von Urlaub und Feiertagen) wird nur auf die Unterrichtswochen verteilt. Ferienwochen zählen so, als würdest du in ihnen nicht arbeiten, und haben kein Soll. Arbeitest du in den Ferien trotzdem, baust du in diesen Wochen ein Plus auf.</p>
       <div class="field"><label class="label" for="stPct">Beschäftigungsumfang (%)</label>
         <input type="text" inputmode="decimal" id="stPct" value="${fmtNum(st.pct)}">
@@ -869,7 +864,6 @@ input::-webkit-date-and-time-value { text-align: left; }
       }
       state.timetable = Object.keys(tt).length ? tt : null;
       state.settings = { yearly: y, weeks: w, pct: p, since: since || null, yearStart: `${pad(+ys[2])}-${pad(+ys[1])}` };
-      const nm = document.getElementById('stName').value.trim(); if (nm) state.settings.name = nm.slice(0, 80);
       state.customCats = own.length ? own : null; refreshCats();
       if (cats.size < selectable().length) state.settings.cats = selectable().filter(c => cats.has(c.id)).map(c => c.id);
       sel.cat = firstActive(sel.cat);
@@ -959,75 +953,6 @@ input::-webkit-date-and-time-value { text-align: left; }
 
     const buf = X.write(wb, { bookType: 'xlsx', type: 'array' });
     await saveFile(`Arbeitszeit_${label}.xlsx`, new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-  }
-
-  // ---------- Monatsnachweis (PDF) ----------
-  function loadJsPDF() {
-    if (window.jspdf) return Promise.resolve(window.jspdf.jsPDF);
-    return new Promise((res, rej) => {
-      const sc = document.createElement('script');
-      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-      sc.onload = () => window.jspdf ? res(window.jspdf.jsPDF) : rej(new Error('load')); sc.onerror = () => rej(new Error('load'));
-      document.head.appendChild(sc);
-    });
-  }
-  async function exportMonthPDF(from, to) {
-    let PDF;
-    try { PDF = await loadJsPDF(); } catch (e) { toast('PDF-Modul nicht geladen. Bitte Internetverbindung prüfen.'); return; }
-    const st = settings(), m = new Date(from), title = `${MONTHS[m.getMonth()]} ${m.getFullYear()}`;
-    const h = ms => fmtDur(ms), sg = ms => (ms >= 0 ? '+' : '-') + fmtDur(Math.abs(ms));
-    const doc = new PDF({ unit: 'mm', format: 'a4' });
-    const L = 18, R = 192, GREEN = [31, 107, 87], INK = [30, 30, 30], MUTED = [110, 110, 110], LINE = [215, 215, 215];
-    let y = 20;
-    const txt = (t, x, yy, o = {}) => { doc.setFont('helvetica', o.b ? 'bold' : 'normal'); doc.setFontSize(o.s || 9.5); doc.setTextColor(...(o.c || INK)); doc.text(String(t), x, yy, o.a ? { align: o.a } : undefined); };
-    const rule = (yy, c = LINE) => { doc.setDrawColor(...c); doc.setLineWidth(.2); doc.line(L, yy, R, yy); };
-    const page = need => { if (y + need > 280) { doc.addPage(); y = 20; } };
-    txt('Arbeitszeitnachweis', L, y, { b: true, s: 16, c: GREEN }); txt(title, R, y, { b: true, s: 16, c: GREEN, a: 'right' }); y += 7;
-    txt(`Name: ${st.name || '_______________________________'}`, L, y, { s: 10 }); y += 4; rule(y, GREEN); y += 8;
-    // Summen
-    const s = sumRange(from, to), soll = sollRange(from, to);
-    const future = addDays(startOfDay(Date.now()), 1) < to;
-    const boxes = [['Ist', h(s.total)], [future ? 'Soll bis heute' : 'Soll', h(soll)], ['Saldo', sg(s.total - soll)], ['Schule', h(s.byPlace.schule)], ['Zuhause', h(s.byPlace.zuhause)]];
-    const bw = (R - L) / boxes.length;
-    boxes.forEach(([k, v], i) => { txt(k.toUpperCase(), L + i * bw, y, { s: 7.5, c: MUTED, b: true }); txt(v + ' h', L + i * bw, y + 6, { s: 13, b: true, c: k === 'Saldo' ? (s.total - soll >= 0 ? GREEN : [180, 50, 40]) : INK }); });
-    y += 11;
-    txt(`Soll: ${fmtNum(st.yearly)} h im Jahr${st.pct !== 100 ? ` bei ${fmtNum(st.pct)} %` : ''} auf ${fmtNum(st.weeks)} Unterrichtswochen = ${fmtNum(weeklySoll() / 3600000)} h pro Woche, ${h(dailySoll())} h pro Arbeitstag. Ferienwochen und freie Tage ohne Soll.`, L, y, { s: 8, c: MUTED }); y += 8;
-    // Tage
-    const cols = [L, L + 30, L + 50, L + 68, L + 90, L + 112];
-    const head = ['Datum', 'Beginn', 'Ende', 'Arbeitszeit', 'Soll', 'Bemerkung'];
-    head.forEach((t, i) => txt(t, cols[i], y, { b: true, s: 8.5, c: MUTED })); y += 2; rule(y); y += 4.6;
-    for (let d = startOfDay(from); d < to; d = addDays(d, 1)) {
-      const dd = new Date(d), wd = dd.getDay(), we = wd === 0 || wd === 6;
-      const list = state.entries.filter(x => x.end > d && x.start < d + DAY);
-      const tot = sumRange(d, d + DAY).total, so = sollRange(d, d + DAY);
-      const note = isHoliday(d) && !we ? 'Ferienwoche' : isOff(d) && !we ? OFF_REASONS[offReason(d)] : '';
-      if (we) { doc.setFillColor(244, 244, 242); doc.rect(L - 1, y - 3.6, R - L + 2, 4.9, 'F'); }
-      const c = we && !tot ? MUTED : INK;
-      txt(`${WD[wd]} ${fmtShort(d)}`, cols[0], y, { c });
-      if (list.length) { txt(fmtTime(Math.max(d, Math.min(...list.map(x => x.start)))), cols[1], y, { c }); txt(fmtTime(Math.min(d + DAY - 60000, Math.max(...list.map(x => x.end)))), cols[2], y, { c }); }
-      txt(tot ? h(tot) : '-', cols[3], y, { c, b: !!tot }); txt(so ? h(so) : '', cols[4], y, { c: MUTED }); txt(note, cols[5], y, { c: MUTED });
-      y += 4.9;
-    }
-    rule(y - 3); y += 2;
-    txt('Summe', cols[0], y, { b: true }); txt(h(s.total), cols[3], y, { b: true }); txt(h(soll), cols[4], y, { b: true, c: MUTED }); y += 9;
-    // Tätigkeiten
-    const used = CATS.filter(c => s.byCat[c.id]).sort((a, b) => s.byCat[b.id] - s.byCat[a.id]);
-    if (used.length) {
-      page(10 + used.length * 4.9);
-      txt('Nach Tätigkeit', L, y, { b: true, s: 11, c: GREEN }); y += 2; rule(y, GREEN); y += 5;
-      for (const c of used) {
-        txt(plain(c.raw || c.name), L, y); txt(h(s.byCat[c.id]) + ' h', L + 90, y, { a: 'right' }); txt(Math.round(s.byCat[c.id] / s.total * 100) + ' %', L + 108, y, { a: 'right', c: MUTED });
-        y += 4.9;
-      }
-      y += 6;
-    }
-    page(22);
-    y = Math.max(y + 10, 262);
-    doc.setDrawColor(...MUTED); doc.setLineWidth(.2); doc.line(L, y, L + 70, y); doc.line(R - 70, y, R, y);
-    txt('Ort, Datum', L, y + 4, { s: 8, c: MUTED }); txt('Unterschrift', R - 70, y + 4, { s: 8, c: MUTED });
-    const pages = doc.getNumberOfPages();
-    for (let i = 1; i <= pages; i++) { doc.setPage(i); txt(`Erstellt mit Lehrerzeit am ${fmtShort(Date.now())}${new Date().getFullYear()}${pages > 1 ? ` · Seite ${i} von ${pages}` : ''}`, L, 290, { s: 7.5, c: MUTED }); }
-    await saveFile(`Arbeitszeitnachweis_${m.getFullYear()}-${pad(m.getMonth() + 1)}.pdf`, doc.output('blob'), 'Monatsnachweis gespeichert');
   }
 
   async function saveFile(name, blob, okMsg = 'Excel-Datei gespeichert') {
