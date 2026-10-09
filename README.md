@@ -4,7 +4,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 
 ## Was sie kann
 - Arbeitszeit per Start/Stopp erfassen, nach Tätigkeit (16 zur Auswahl, z. B. Unterricht, Vor-/Nachbereitung, Korrekturen, Lernzeit, Administration) und Ort (Schule/Zuhause)
-- Einträge nachträglich korrigieren oder nachtragen
+- Einträge nachträglich korrigieren oder nachtragen; warnt bei Überschneidungen, Löschen lässt sich kurz rückgängig machen
 - Wochen-, Monats- und Schuljahressummen mit Soll und Saldo; in der Wochengrafik einen Tag antippen, um dort direkt nachzutragen oder zu korrigieren
 - Jahressoll (Standard 1805 h auf 40 Unterrichtswochen), Ferienwochen ohne Soll (Arbeit in den Ferien zählt als Plus) und freie Tage
 - Export als Excel-Datei

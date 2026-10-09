@@ -195,6 +195,8 @@ input::-webkit-date-and-time-value { text-align: left; }
 .syncdot.err { background: var(--danger); }
 .remind { border-color: var(--chalk); background: color-mix(in srgb, var(--chalk) 14%, var(--surface)); }
 .remind p { margin: 0; }
+.toast.act { display: flex; align-items: center; white-space: nowrap; }
+.toast button { margin-left: 14px; background: none; border: 0; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; padding: 6px 2px; cursor: pointer; }
 .toast { position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; z-index: 30; font-weight: 600; max-width: calc(100% - 32px); }
 </style>
 
@@ -317,6 +319,10 @@ input::-webkit-date-and-time-value { text-align: left; }
     { v: 5, items: [
       'Auswertung → Woche: Tipp auf einen Wochentag in der Grafik. Dann siehst du die Einträge des Tages, kannst sie korrigieren, Zeit nachtragen oder Lücken füllen.',
     ] },
+    { v: 6, items: [
+      'Überschneidet sich eine nachgetragene Zeit mit einem bestehenden Eintrag, weist die App beim Speichern darauf hin.',
+      'Eintrag aus Versehen gelöscht? Für einige Sekunden erscheint „Rückgängig“.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -382,10 +388,15 @@ input::-webkit-date-and-time-value { text-align: left; }
   const $view = document.getElementById('view');
   const $modal = document.getElementById('modalRoot');
 
-  function toast(msg) {
+  function toast(msg, action, onAction) {
     document.querySelectorAll('.toast').forEach(x => x.remove());
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status');
-    document.body.appendChild(t); setTimeout(() => t.remove(), 2200);
+    if (action) {
+      const b = document.createElement('button'); b.textContent = action;
+      b.onclick = () => { t.remove(); onAction(); };
+      t.appendChild(b); t.classList.add('act');
+    }
+    document.body.appendChild(t); setTimeout(() => t.remove(), action ? 6000 : 2200);
   }
 
   // ---------- Timer actions ----------
@@ -984,7 +995,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       st = last || day + 7.5 * 3600000; en = Math.min(st + 3600000, day + DAY - 60000);
     }
     const e = entry ? { ...entry } : { cat: sel.cat, place: sel.place, note: '', start: st, end: en };
-    let cat = catById(e.cat).id, place = e.place, confirmDel = false, noteAsked = false;
+    let cat = catById(e.cat).id, place = e.place, confirmDel = false, noteAsked = false, overlapKey = null;
     const dayTs = () => { const d = e._d || fmtDateInput(e.start); const [y, mo, da] = d.split('-').map(Number); return new Date(y, mo - 1, da).getTime(); };
     const ttDay = () => ttFor(dayTs());
     function draw(err) {
@@ -1022,7 +1033,11 @@ input::-webkit-date-and-time-value { text-align: left; }
         askGaps(day);
       };
       const del = document.getElementById('edDel'); if (del) del.onclick = () => { keep(); confirmDel = true; redraw(); };
-      const yes = document.getElementById('edDelYes'); if (yes) yes.onclick = () => { state.entries = state.entries.filter(x => x.id !== entry.id); save(); close(); render(); toast('Eintrag gelöscht'); };
+      const yes = document.getElementById('edDelYes'); if (yes) yes.onclick = () => {
+        state.entries = state.entries.filter(x => x.id !== entry.id); save(); close(); render();
+        const back = { ...entry }; delete back.u;
+        toast('Eintrag gelöscht', 'Rückgängig', () => { state.entries.push({ ...back, id: uid() }); save(); render(); toast('Eintrag wiederhergestellt'); });
+      };
       document.getElementById('edSave').onclick = () => {
         const d = document.getElementById('edDate').value, f = document.getElementById('edFrom').value, t = document.getElementById('edTo').value;
         if (!d || !f || !t) return draw('Bitte Datum, Beginn und Ende ausfüllen.');
@@ -1032,6 +1047,12 @@ input::-webkit-date-and-time-value { text-align: left; }
         if (end <= start) end += DAY; // über Mitternacht
         if (end - start > 16 * 3600000) return draw('Ein Eintrag darf höchstens 16 Stunden lang sein. Bitte Beginn und Ende prüfen.');
         if (cat === 'sonstiges' && !document.getElementById('edNote').value.trim() && !noteAsked) { noteAsked = true; e.note = ''; e._d = d; e._f = f; e._t = t; return draw('Bei „Sonstiges“ bitte kurz notieren, worum es geht. Nochmal „Speichern“ tippen, um ohne Notiz zu speichern.'); }
+        const clash = state.entries.filter(x => x !== entry && x.start < end && x.end > start).sort((a, b) => a.start - b.start);
+        if (clash.length && overlapKey !== `${start}-${end}`) {
+          overlapKey = `${start}-${end}`; e.note = document.getElementById('edNote').value; e._d = d; e._f = f; e._t = t;
+          const names = clash.slice(0, 2).map(x => `${plain(catById(x.cat).raw || catById(x.cat).name)} ${fmtTime(x.start)}–${fmtTime(x.end)}`).join(' und ') + (clash.length > 2 ? ` und ${clash.length - 2} weitere` : '');
+          return draw(`Diese Zeit überschneidet sich mit ${esc(names)}. Sie würde dann doppelt zählen. Bitte Beginn und Ende anpassen oder nochmal „Speichern“ tippen, um trotzdem zu speichern.`);
+        }
         const rec = { cat, place, note: document.getElementById('edNote').value.trim(), start, end };
         if (isNew) state.entries.push({ id: uid(), ...rec }); else Object.assign(entry, rec);
         save(); render(); toast(isNew ? 'Zeit nachgetragen' : 'Änderung gespeichert');
