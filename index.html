@@ -363,6 +363,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     { v: 8, items: [
       'Beim Stoppen wird auf volle Minuten gerundet: bis 29 Sekunden ab, ab 30 Sekunden auf. 5:24 werden also 5 Minuten, 5:30 werden 6 Minuten.',
     ] },
+    { v: 9, items: [
+      'Zeit nachtragen: Der Vorschlag für „Von“ beginnt dort, wo der letzte Eintrag des Tages endet. Wählst du ein anderes Datum, passt sich der Vorschlag an. Hat der Tag noch keine Einträge, beginnt er um 7:30.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -1087,11 +1090,14 @@ input::-webkit-date-and-time-value { text-align: left; }
   function openEditor(entry, day) {
     const isNew = !entry;
     const now = Date.now();
+    // Nachtrag: hinter dem letzten Eintrag des Tages weitermachen (sonst 7:30), eine Stunde vorschlagen
+    const suggest = d => {
+      const last = Math.max(0, ...state.entries.filter(x => x.end > d && x.end <= d + DAY).map(x => x.end));
+      const a = last || d + 7.5 * 3600000; return [a, Math.min(a + 3600000, d + DAY - 60000)];
+    };
     let st = now - 3600000, en = now;
-    if (isNew && day != null) { // Nachtrag für einen bestimmten Tag: hinter dem letzten Eintrag weitermachen
-      const last = Math.max(0, ...state.entries.filter(x => x.end > day && x.end <= day + DAY).map(x => x.end));
-      st = last || day + 7.5 * 3600000; en = Math.min(st + 3600000, day + DAY - 60000);
-    }
+    if (isNew && day != null) [st, en] = suggest(day);
+    else if (isNew && state.entries.some(x => x.end > startOfDay(now) && x.end <= now)) [st, en] = suggest(startOfDay(now));
     const e = entry ? { ...entry } : { cat: sel.cat, place: sel.place, note: '', start: st, end: en };
     let cat = catById(e.cat).id, place = e.place, confirmDel = false, noteAsked = false, overlapKey = null;
     const dayTs = () => { const d = e._d || fmtDateInput(e.start); const [y, mo, da] = d.split('-').map(Number); return new Date(y, mo - 1, da).getTime(); };
@@ -1119,7 +1125,11 @@ input::-webkit-date-and-time-value { text-align: left; }
       $modal.querySelectorAll('[data-eplace]').forEach(b => b.onclick = () => { keep(); place = b.dataset.eplace; redraw(); });
       document.getElementById('edCancel').onclick = close;
       document.getElementById('ov').onclick = ev => { if (ev.target.id === 'ov') close(); };
-      document.getElementById('edDate').onchange = () => { keep(); redraw(); };
+      document.getElementById('edDate').onchange = () => {
+        keep();
+        if (isNew && e._d) { const [y, mo, da] = e._d.split('-').map(Number); const [a, b] = suggest(new Date(y, mo - 1, da).getTime()); e._f = fmtTime(a); e._t = fmtTime(b); }
+        redraw();
+      };
       const ttb = document.getElementById('edTT'); if (ttb) ttb.onclick = () => {
         keep(); const day = dayTs();
         const blocks = ttDay().filter(([a, b]) => !state.entries.some(x => x.start < day + b * 60000 && x.end > day + a * 60000));
