@@ -113,6 +113,7 @@ input[type=text], input[type=date], input[type=time], select { width: 100%; min-
 .day-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-top: 6px; }
 .day-head strong { font-family: var(--font-display); font-weight: 500; }
 .entry { display: grid; grid-template-columns: 4px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); text-align: left; width: 100%; }
+.ttbox { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 4px 0 8px; }
 .news { margin: 6px 0 10px; padding-left: 20px; } .news li { margin: 4px 0; }
 .entry .bar { align-self: stretch; border-radius: 2px; }
 .entry .main { min-width: 0; display: flex; flex-direction: column; }
@@ -263,6 +264,22 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
   // Bis Okt. 2026 war 1886 h voreingestellt; bestehende Installationen behalten ihr bisheriges Soll
   if (state.entries.length && !(state.settings && state.settings.yearly)) { state.settings = Object.assign({}, state.settings, { yearly: 1886 }); save(); }
+  // Stundenplan fürs Nachtragen: state.timetable = { '1': [[465, 560], …] } (Wochentag 1–5, Minuten ab Mitternacht)
+  const TT_DAYS = [[1, 'Montag'], [2, 'Dienstag'], [3, 'Mittwoch'], [4, 'Donnerstag'], [5, 'Freitag']];
+  const fmtMin = m => `${Math.floor(m / 60)}:${pad(m % 60)}`;
+  const ttText = blocks => (blocks || []).map(([a, b]) => `${fmtMin(a)}–${fmtMin(b)}`).join(', ');
+  function parseBlocks(txt) {
+    const out = [];
+    for (const part of txt.split(/[,;]/).map(x => x.trim()).filter(Boolean)) {
+      const m = part.match(/^(\d{1,2})[:.](\d{2})\s*(?:-|–|—|bis)\s*(\d{1,2})[:.](\d{2})(?:\s*Uhr)?$/i);
+      if (!m) return null;
+      const a = +m[1] * 60 + +m[2], b = +m[3] * 60 + +m[4];
+      if (+m[1] > 23 || +m[3] > 23 || +m[2] > 59 || +m[4] > 59 || b <= a) return null;
+      out.push([a, b]);
+    }
+    return out.sort((x, y) => x[0] - y[0]);
+  }
+  const ttFor = ts => { const wd = new Date(ts).getDay(); return (state.timetable && state.timetable[wd]) || []; };
   // „Was ist neu“: bei jedem Update einen Eintrag mit höherem v ergänzen
   const CHANGES = [
     { v: 1, items: [
@@ -271,6 +288,9 @@ input::-webkit-date-and-time-value { text-align: left; }
       'Die NRW-Ferien 2027/28 sind eingetragen.',
       'Läuft der Timer länger als 10 Stunden, fragt die App nach, ob er noch laufen soll.',
       'Die meistgenutzten Tätigkeiten stehen oben, der Ort steht direkt neben dem Start-Knopf.',
+    ] },
+    { v: 2, items: [
+      'Stundenplan fürs Nachtragen: Unterrichtszeiten einmal unter Einstellungen → Mein Stundenplan eintragen. Beim Nachtragen eines Tages fügst du sie dann mit einem Tipp ein und kannst jeden Block danach noch ändern.',
     ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
@@ -737,6 +757,9 @@ input::-webkit-date-and-time-value { text-align: left; }
       <span class="label">Meine Tätigkeiten</span>
       <div class="chips" id="stCats"></div>
       <p class="hint">Wähle mindestens ${MIN_CATS} aus. Abgewählte Tätigkeiten verschwinden aus der Auswahl beim Erfassen; bereits erfasste Zeiten bleiben erhalten.</p>
+      <span class="label">Mein Stundenplan (nur fürs Nachtragen)</span>
+      <p class="hint">Freiwillig. Trag deine Unterrichtszeiten ein, z. B. „7:45–13:05“ oder mit Freistunde „7:45–9:20, 10:05–13:05“. Beim Nachtragen eines Tages kannst du sie dann mit einem Tipp einfügen und danach jeden Block noch ändern.</p>
+      ${TT_DAYS.map(([d, n]) => `<div class="field"><label class="label" for="stTT${d}">${n}</label><input type="text" id="stTT${d}" value="${ttText(state.timetable && state.timetable[d])}" placeholder="z. B. 7:45–13:05"></div>`).join('')}
       <p class="warn" id="stErr" hidden></p>
       <div class="actions"><div><button class="btn" id="stCancel">Abbrechen</button><button class="btn primary" id="stSave">Speichern</button></div></div>
     </div></div>`;
@@ -768,6 +791,13 @@ input::-webkit-date-and-time-value { text-align: left; }
       if (!(w >= 1 && w <= 52)) return fail('Bitte zwischen 1 und 52 Unterrichtswochen eingeben.');
       if (!(p > 0 && p <= 100)) return fail('Bitte einen Umfang zwischen 1 und 100 % eingeben.');
       if (!ys || +ys[1] < 1 || +ys[1] > 31 || +ys[2] < 1 || +ys[2] > 12) return fail('Bitte den Schuljahresbeginn als Tag.Monat eingeben, z. B. 01.08.');
+      const tt = {};
+      for (const [d, n] of TT_DAYS) {
+        const b = parseBlocks(document.getElementById('stTT' + d).value);
+        if (!b) return fail(`Stundenplan ${n}: bitte Zeiten wie „7:45–13:05“ eingeben, mehrere mit Komma getrennt.`);
+        if (b.length) tt[d] = b;
+      }
+      state.timetable = Object.keys(tt).length ? tt : null;
       state.settings = { yearly: y, weeks: w, pct: p, since: since || null, yearStart: `${pad(+ys[2])}-${pad(+ys[1])}` };
       if (cats.size < CATS.length) state.settings.cats = CATS.filter(c => cats.has(c.id)).map(c => c.id);
       sel.cat = firstActive(sel.cat);
@@ -876,6 +906,8 @@ input::-webkit-date-and-time-value { text-align: left; }
     const now = Date.now();
     const e = entry ? { ...entry } : { cat: sel.cat, place: sel.place, note: '', start: now - 3600000, end: now };
     let cat = catById(e.cat).id, place = e.place, confirmDel = false, noteAsked = false;
+    const dayTs = () => { const d = e._d || fmtDateInput(e.start); const [y, mo, da] = d.split('-').map(Number); return new Date(y, mo - 1, da).getTime(); };
+    const ttDay = () => ttFor(dayTs());
     function draw(err) {
       $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="edTitle">
         <h2 id="edTitle">${isNew ? 'Zeit nachtragen' : 'Eintrag korrigieren'}</h2>
@@ -886,6 +918,7 @@ input::-webkit-date-and-time-value { text-align: left; }
           <div class="field" style="flex-basis:100px"><label class="label" for="edFrom">Von</label><input type="time" id="edFrom" value="${fmtTime(e.start)}"></div>
           <div class="field" style="flex-basis:100px"><label class="label" for="edTo">Bis</label><input type="time" id="edTo" value="${fmtTime(e.end)}"></div>
         </div>
+        ${isNew && ttDay().length ? `<div class="ttbox"><button class="btn" id="edTT">Unterricht laut Stundenplan einfügen</button><span class="hint">${ttText(ttDay())} · ${PLACES.schule}</span></div>` : ''}
         <div class="field"><label class="label" for="edNote">Notiz</label><input type="text" id="edNote" value="${esc(e.note)}"></div>
         ${err ? `<p class="warn">${err}</p>` : ''}
         ${confirmDel ? `<p class="warn">Diesen Eintrag wirklich löschen? Das lässt sich nicht rückgängig machen.</p>` : ''}
@@ -898,6 +931,16 @@ input::-webkit-date-and-time-value { text-align: left; }
       $modal.querySelectorAll('[data-eplace]').forEach(b => b.onclick = () => { keep(); place = b.dataset.eplace; redraw(); });
       document.getElementById('edCancel').onclick = close;
       document.getElementById('ov').onclick = ev => { if (ev.target.id === 'ov') close(); };
+      document.getElementById('edDate').onchange = () => { keep(); redraw(); };
+      const ttb = document.getElementById('edTT'); if (ttb) ttb.onclick = () => {
+        keep(); const day = dayTs();
+        const blocks = ttDay().filter(([a, b]) => !state.entries.some(x => x.start < day + b * 60000 && x.end > day + a * 60000));
+        if (!blocks.length) return draw('Zu diesen Zeiten ist an dem Tag schon etwas erfasst. Bitte die Einträge unter „Einträge“ prüfen.');
+        for (const [a, b] of blocks) state.entries.push({ id: uid(), cat: 'unterricht', place: 'schule', note: '', start: day + a * 60000, end: day + b * 60000 });
+        save(); close(); render();
+        const skipped = ttDay().length - blocks.length;
+        toast(`${blocks.length} Unterrichtsblock${blocks.length > 1 ? 'e' : ''} eingefügt${skipped ? `, ${skipped} übersprungen (schon belegt)` : ''}. Antippen zum Ändern.`);
+      };
       const del = document.getElementById('edDel'); if (del) del.onclick = () => { keep(); confirmDel = true; redraw(); };
       const yes = document.getElementById('edDelYes'); if (yes) yes.onclick = () => { state.entries = state.entries.filter(x => x.id !== entry.id); save(); close(); render(); toast('Eintrag gelöscht'); };
       document.getElementById('edSave').onclick = () => {
@@ -961,7 +1004,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   // ---------- Abgleich zwischen Geräten (nur in claude.ai, private Daten des angemeldeten Nutzers) ----------
   // Ablage: data/users/<id>/meta (Einstellungen, Ferien, laufender Timer) und data/users/<id>/m-JJJJ-MM (Einträge des Monats).
   // Gelöschte Einträge bleiben als {deleted:true} stehen, damit andere Geräte sie ebenfalls entfernen.
-  const META_KEYS = ['settings', 'offDays', 'holidayWeeks', 'presets', 'running', 'lastCat', 'lastPlace'];
+  const META_KEYS = ['settings', 'offDays', 'holidayWeeks', 'presets', 'running', 'lastCat', 'lastPlace', 'timetable'];
   const metaOf = () => { const m = {}; for (const k of META_KEYS) m[k] = state[k] === undefined ? null : state[k]; return m; };
   const canon = v => v === null || typeof v !== 'object' ? JSON.stringify(v) : Array.isArray(v) ? '[' + v.map(canon).join(',') + ']' : '{' + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
   const monthKey = t => { const d = new Date(t); return `m-${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
@@ -1077,6 +1120,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     state.entries = [...local.values()];
     for (const k of ['offDays', 'holidayWeeks']) if (data[k]) state[k] = Object.assign({}, data[k], state[k] || {});
     if (data.settings && !state.settings) state.settings = data.settings;
+    if (data.timetable && !state.timetable) state.timetable = data.timetable;
     const exported = Date.parse(data.exportedAt); if (exported) state.lastBackup = Math.max(state.lastBackup || 0, exported);
     savedBodies = new Map(state.entries.map(e => [e.id, bodyOf(e)]));
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}

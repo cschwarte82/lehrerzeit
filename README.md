@@ -11,6 +11,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Fragt nach, wenn der Timer über 10 Stunden oder seit gestern läuft, und lässt das Ende direkt korrigieren
 - Die drei meistgenutzten Tätigkeiten stehen oben, der Ort wird direkt neben „Start“ gewählt
 - Zeigt nach einem Update einmal kurz, was neu ist
+- Optional: Stundenplan hinterlegen und beim Nachtragen eines Tages die Unterrichtsblöcke mit einem Tipp einfügen (danach änderbar)
 
 ## Installieren
 - **iPhone (Safari):** Link öffnen → Teilen-Symbol → „Zum Home-Bildschirm“.
