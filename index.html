@@ -615,10 +615,8 @@ input::-webkit-date-and-time-value { text-align: left; }
           fill[z] += Math.max(0, len);
         }
       }
-      const core = TZ.map((z, k) => {
-        const len = coreFor(d).reduce((sum, [ca, cb]) => sum + Math.max(0, Math.min(cb / 60, z.b) - Math.max(ca / 60, z.a)), 0);
-        return len ? `<i class="core" style="bottom:${pos(z.a)}%;height:${len / 24 * 100}%"></i>` : '';
-      }).join('');
+      // Kernarbeitszeit als durchgehender Balken nach Uhrzeit
+      const core = coreFor(d).map(([ca, cb]) => { const x = Math.max(ca / 60, 6), y = Math.min(cb / 60, 30); return y > x ? `<i class="core" style="bottom:${pos(x)}%;height:${(y - x) / 24 * 100}%"></i>` : ''; }).join('');
       days.push(`<button class="day" data-day="${d}" aria-label="${fmtDay(d)}: Einträge ansehen">${core}${blocks.join('')}</button>`);
     }
     return `<div class="tl">
