@@ -27,6 +27,7 @@
   --danger: #b4412f;
   --good: #2f7d4f;
   --c1: #1f6b57; --c2: #2f6fd0; --c3: #d43d3d; --c4: #63b33a; --c5: #f08c00; --c6: #8f1d3f; --c7: #12a4c4; --c8: #e05fa8; --c9: #e2bd00; --c10: #0b2f5c; --c11: #6b7280; --c12: #7b3fe4; --c13: #222222; --c14: #c2c2c2; --c15: #8d5a2b; --c16: #7d8a00; --c17: #00897b; --c18: #ff7a5c; --c19: #b39ddb; --c20: #c8b273;
+  --tz1: #3f8f6f; --tz2: #7fb7a3; --tz3: #e2a33a; --tz4: #3b4a7a;
   --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -36,11 +37,13 @@
   --bg: #121916; --surface: #1a2420; --ink: #e6ece9; --muted: #9aaba4; --line: #2c3a35;
   --accent: #4fb092; --accent-ink: #0d1613; --chalk: #f0c75e; --danger: #e07a66; --good: #6cc08a;
   --c1: #4fb092; --c2: #5b95f0; --c3: #f06a6a; --c4: #8fd66a; --c5: #ffa733; --c6: #d0607e; --c7: #4fd0e8; --c8: #f08cc4; --c9: #f5d63d; --c10: #c7d7f0; --c11: #9aa3ad; --c12: #a98cf5; --c13: #f2f2f2; --c14: #6f6f6f; --c15: #c9915a; --c16: #c3d14a; --c17: #4db6ac; --c18: #ff9e85; --c19: #cdbdf0; --c20: #ddd09a;
+  --tz1: #4fb092; --tz2: #9fd3c0; --tz3: #f0b85a; --tz4: #8f9fd6;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #121916; --surface: #1a2420; --ink: #e6ece9; --muted: #9aaba4; --line: #2c3a35;
   --accent: #4fb092; --accent-ink: #0d1613; --chalk: #f0c75e; --danger: #e07a66; --good: #6cc08a;
   --c1: #4fb092; --c2: #5b95f0; --c3: #f06a6a; --c4: #8fd66a; --c5: #ffa733; --c6: #d0607e; --c7: #4fd0e8; --c8: #f08cc4; --c9: #f5d63d; --c10: #c7d7f0; --c11: #9aa3ad; --c12: #a98cf5; --c13: #f2f2f2; --c14: #6f6f6f; --c15: #c9915a; --c16: #c3d14a; --c17: #4db6ac; --c18: #ff9e85; --c19: #cdbdf0; --c20: #ddd09a;
+  --tz1: #4fb092; --tz2: #9fd3c0; --tz3: #f0b85a; --tz4: #8f9fd6;
   color-scheme: dark; }
 
 * { box-sizing: border-box; }
@@ -141,6 +144,19 @@ input[type=text], input[type=date], input[type=time], select { width: 100%; min-
 .bars button.col { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; border-radius: 8px; }
 .bars button.col .lbl { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
 .bars button.col:active .stack { opacity: .7; }
+.tl { display: grid; grid-template-columns: 68px 1fr; margin-top: 4px; }
+.tl .zones { position: relative; height: 300px; }
+.tl .zones span { position: absolute; right: 8px; transform: translateY(50%); font-size: .78rem; font-weight: 700; color: var(--muted); }
+.tl .plot { position: relative; height: 300px; display: grid; grid-template-columns: repeat(7, 1fr); }
+.tl .zl { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); pointer-events: none; }
+.tl .day { position: relative; background: none; border: 0; padding: 0; cursor: pointer; }
+.tl .core { position: absolute; left: 3px; right: 3px; border-radius: 5px; background: color-mix(in srgb, var(--muted) 24%, transparent); }
+.tl .blk { position: absolute; left: 22%; right: 22%; border-radius: 3px; min-height: 2px; }
+.tl .days { grid-column: 2; display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; padding-top: 6px; }
+.tl .days b { display: block; font-size: .85rem; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.tl .days small { color: var(--muted); font-size: .72rem; }
+.tzlegend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .78rem; color: var(--muted); margin-top: 10px; }
+.tzlegend i { display: inline-block; width: 18px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; background: color-mix(in srgb, var(--muted) 24%, transparent); }
 .catlist { display: flex; flex-direction: column; gap: 8px; }
 .catrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; }
 .catrow .name { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -298,6 +314,22 @@ input::-webkit-date-and-time-value { text-align: left; }
     return out.sort((x, y) => x[0] - y[0]);
   }
   const ttFor = ts => { const wd = new Date(ts).getDay(); return (state.timetable && state.timetable[wd]) || []; };
+  // Kernarbeitszeit: state.coreHours = { '1': [[450, 960]] } (wie Stundenplan)
+  const coreFor = ts => { const wd = new Date(ts).getDay(); return (state.coreHours && state.coreHours[wd]) || []; };
+  // Tagesabschnitte (Stunden ab Mitternacht; Nacht reicht bis 6 Uhr des Folgetags)
+  const TZ = [{ id: 'vormittag', name: 'Vormittag', a: 6, b: 12 }, { id: 'nachmittag', name: 'Nachmittag', a: 12, b: 17 }, { id: 'abend', name: 'Abend', a: 17, b: 22 }, { id: 'nacht', name: 'Nacht', a: 22, b: 30 }];
+  function tzSum(from, to) {
+    const by = { vormittag: 0, nachmittag: 0, abend: 0, nacht: 0 }; let core = 0, total = 0;
+    for (const e of allEntries()) {
+      const s0 = Math.max(e.start, from), e0 = Math.min(e.end, to); if (e0 <= s0) continue;
+      total += e0 - s0;
+      for (let d = addDays(startOfDay(s0), -1); d < e0; d = addDays(d, 1)) {
+        for (const z of TZ) by[z.id] += Math.max(0, Math.min(e0, d + z.b * 3600000) - Math.max(s0, d + z.a * 3600000));
+        for (const [a, b] of coreFor(d)) core += Math.max(0, Math.min(e0, d + b * 60000) - Math.max(s0, d + a * 60000));
+      }
+    }
+    return { by, core, total };
+  }
   // „Was ist neu“: bei jedem Update einen Eintrag mit höherem v ergänzen
   const CHANGES = [
     { v: 1, items: [
@@ -322,6 +354,11 @@ input::-webkit-date-and-time-value { text-align: left; }
     { v: 6, items: [
       'Überschneidet sich eine nachgetragene Zeit mit einem bestehenden Eintrag, weist die App beim Speichern darauf hin.',
       'Eintrag aus Versehen gelöscht? Für einige Sekunden erscheint „Rückgängig“.',
+    ] },
+    { v: 7, items: [
+      'Tagesverlauf: In Auswertung → Woche siehst du für jeden Tag, ob du vormittags, nachmittags, abends oder nachts gearbeitet hast.',
+      'Nach Tageszeit: Woche, Monat und Schuljahr zeigen, wie viele Stunden auf Vormittag (6–12 Uhr), Nachmittag (12–17), Abend (17–22) und Nacht (22–6) fallen.',
+      'Kernarbeitszeit: Unter Einstellungen kannst du sie je Wochentag eintragen. Sie erscheint grau im Tagesverlauf, und die App zeigt, wie viel du außerhalb davon arbeitest.',
     ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
@@ -559,6 +596,38 @@ input::-webkit-date-and-time-value { text-align: left; }
       <span class="num">${fmtDur(byCat[c.id])} h <span class="hint">${Math.round(byCat[c.id] / total * 100)} %</span></span>
       <span class="track"><i style="width:${byCat[c.id] / max * 100}%;background:${c.color}"></i></span></div>`).join('')}</div>`;
   }
+  // Tagesverlauf: eine Säule je Tag, unten Vormittag, oben Nacht
+  function timelineHTML(from) {
+    const pos = h => (h - 6) / 24 * 100;
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(from, i), H = 3600000;
+      const blocks = [];
+      for (const e of allEntries().filter(x => x.start >= d && x.start < addDays(d, 1))) {
+        const a = (e.start - d) / H, b = Math.min((e.end - d) / H, 30), c = catById(e.cat).color;
+        const parts = a < 6 ? [[a + 24, Math.min(b, 6) + 24], ...(b > 6 ? [[6, b]] : [])] : [[a, b]];
+        for (const [pa, pb] of parts) if (pb > pa) blocks.push(`<i class="blk" style="bottom:${pos(pa)}%;height:${pos(pb) - pos(pa)}%;background:${c}"></i>`);
+      }
+      const core = coreFor(d).map(([a, b]) => `<i class="core" style="bottom:${pos(a / 60)}%;height:${(b - a) / 60 / 24 * 100}%"></i>`).join('');
+      days.push(`<button class="day" data-day="${d}" aria-label="${fmtDay(d)}: Einträge ansehen">${core}${blocks.join('')}</button>`);
+    }
+    return `<div class="tl">
+      <div class="zones">${TZ.map(z => `<span style="bottom:${(pos(z.a) + pos(z.b)) / 2}%">${z.name}</span>`).join('')}</div>
+      <div class="plot">${[6, 12, 17, 22, 30].map(h => `<i class="zl" style="bottom:${pos(h)}%"></i>`).join('')}${days.join('')}</div>
+      <div class="days">${[0, 1, 2, 3, 4, 5, 6].map(i => { const d = addDays(from, i); return `<span><b>${WD[new Date(d).getDay()]}</b><small>${fmtShort(d).slice(0, 3)}</small></span>`; }).join('')}</div>
+    </div>`;
+  }
+  function tzHTML(from, to) {
+    const t = tzSum(from, to); if (!t.total) return '';
+    const max = Math.max(...Object.values(t.by), 1);
+    const hasCore = !!state.coreHours;
+    return `<section class="panel"><h2>Nach Tageszeit</h2>
+      <div class="bars" style="--n:4">${TZ.map((z, i) => `<div class="col"><span class="val">${fmtDur(t.by[z.id])}</span>
+        <div class="stack" style="height:${t.by[z.id] / max * 100}%"><i style="display:block;height:100%;background:var(--tz${i + 1})"></i></div>
+        <span class="lbl">${z.name}</span><span class="val">${Math.round(t.by[z.id] / t.total * 100)} %</span></div>`).join('')}</div>
+      ${hasCore ? `<div class="soll" style="grid-template-columns:1fr 1fr;margin-top:12px"><div><span class="label">In Kernarbeitszeit</span><b class="num">${fmtDur(t.core)}</b></div><div><span class="label">Außerhalb</span><b class="num">${fmtDur(t.total - t.core)}</b></div></div>` : `<p class="hint" style="margin-top:10px">Trag unter Einstellungen deine Kernarbeitszeit ein, dann siehst du hier, wie viel du außerhalb davon arbeitest.</p>`}
+    </section>`;
+  }
   function barsHTML(cols) {
     const max = Math.max(3600000, ...cols.map(c => c.total));
     return `<div class="bars" style="--n:${cols.length}">${cols.map(col => `
@@ -649,6 +718,9 @@ input::-webkit-date-and-time-value { text-align: left; }
           <p class="hint">Tag antippen, um ihn als frei zu kennzeichnen (z. B. beweglicher Ferientag, Feiertag, krank). Freie Tage zählen nicht zum Soll.</p>`}
         </div>
       </section>`;
+      if (s.total) html += `<section class="panel"><h2>Tagesverlauf</h2><p class="hint">Wann du gearbeitet hast${state.coreHours ? '. Grau hinterlegt: deine Kernarbeitszeit' : ''}. Tag antippen für Details.</p>${timelineHTML(from)}
+        <div class="tzlegend">${state.coreHours ? '<span><i></i>Kernarbeitszeit</span>' : ''}${CATS.filter(c => s.byCat[c.id]).map(c => `<span><i style="background:${c.color};width:10px"></i>${c.name}</span>`).join('')}</div></section>`;
+      html += tzHTML(from, to);
       if (s.total) html += `<section class="panel"><h2>Nach Tätigkeit</h2>${catListHTML(s.byCat, s.total)}</section>`;
     } else if (period === 'monat') {
       const m = new Date(monthAnchor); from = monthAnchor; to = new Date(m.getFullYear(), m.getMonth() + 1, 1).getTime();
@@ -669,6 +741,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         ${rows.map(r => `<tr><td>KW ${r.kw}<span class="range">${fmtShort(r.a)}–${fmtShort(addDays(r.b, -1))}${r.hol ? ' · Ferien' : ''}</span></td><td class="num">${fmtDur(r.total)}</td><td class="num">${fmtDur(r.soll)}</td><td class="num saldo ${r.total - r.soll >= 0 ? 'plus' : 'minus'}">${r.soll || r.total ? fmtSigned(r.total - r.soll) : ''}</td></tr>`).join('')}
         </tbody></table></div>
       </section>`;
+      html += tzHTML(from, to);
       if (s.total) html += `<section class="panel"><h2>Nach Tätigkeit</h2>${catListHTML(s.byCat, s.total)}</section>`;
     } else {
       const st = settings();
@@ -713,6 +786,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         <div class="row">${HOLIDAY_PRESETS['nrw-' + schoolYearLabel(from).replace('/', '-')] ? `<button class="btn" id="presetNRW">NRW-Ferien ${schoolYearLabel(from)} eintragen</button>` : ''}<button class="btn ghost" id="clearHol">Alle Markierungen entfernen</button></div>
         <div class="weekgrid">${weeks.map(w => `<button class="wk" data-hwk="${keyOf(w)}" aria-pressed="${isHoliday(w)}"><b>KW ${isoWeek(w).week}</b><span>${fmtShort(w)}</span></button>`).join('')}</div>
       </section>`;
+      html += tzHTML(from, to);
       if (s.total) html += `<section class="panel"><h2>Nach Tätigkeit</h2>${catListHTML(s.byCat, s.total)}</section>`;
     }
     const st = settings();
@@ -800,6 +874,9 @@ input::-webkit-date-and-time-value { text-align: left; }
       <span class="label">Mein Stundenplan (nur fürs Nachtragen)</span>
       <p class="hint">Freiwillig. Trag deine Unterrichtszeiten ein, z. B. „7:45–13:05“ oder mit Freistunde „7:45–9:20, 10:05–13:05“. Beim Nachtragen eines Tages kannst du sie dann mit einem Tipp einfügen und danach jeden Block noch ändern.</p>
       ${TT_DAYS.map(([d, n]) => `<div class="field"><label class="label" for="stTT${d}">${n}</label><input type="text" id="stTT${d}" value="${ttText(state.timetable && state.timetable[d])}" placeholder="z. B. 7:45–13:05"></div>`).join('')}
+      <span class="label">Meine Kernarbeitszeit</span>
+      <p class="hint">Freiwillig. Die Zeit, in der du normalerweise arbeitest, z. B. „7:30–16:00“. Sie erscheint in der Wochenauswertung als grauer Hintergrund im Tagesverlauf.</p>
+      ${TT_DAYS.map(([d, n]) => `<div class="field"><label class="label" for="stCore${d}">${n}</label><input type="text" id="stCore${d}" value="${ttText(state.coreHours && state.coreHours[d])}" placeholder="z. B. 7:30–16:00"></div>`).join('')}
       <p class="warn" id="stErr" hidden></p>
       <div class="actions"><div><button class="btn" id="stCancel">Abbrechen</button><button class="btn primary" id="stSave">Speichern</button></div></div>
     </div></div>`;
@@ -862,7 +939,14 @@ input::-webkit-date-and-time-value { text-align: left; }
         if (!b) return fail(`Stundenplan ${n}: bitte Zeiten wie „7:45–13:05“ eingeben, mehrere mit Komma getrennt.`);
         if (b.length) tt[d] = b;
       }
+      const ch = {};
+      for (const [d, n] of TT_DAYS) {
+        const b = parseBlocks(document.getElementById('stCore' + d).value);
+        if (!b) return fail(`Kernarbeitszeit ${n}: bitte Zeiten wie „7:30–16:00“ eingeben.`);
+        if (b.length) ch[d] = b;
+      }
       state.timetable = Object.keys(tt).length ? tt : null;
+      state.coreHours = Object.keys(ch).length ? ch : null;
       state.settings = { yearly: y, weeks: w, pct: p, since: since || null, yearStart: `${pad(+ys[2])}-${pad(+ys[1])}` };
       state.customCats = own.length ? own : null; refreshCats();
       if (cats.size < selectable().length) state.settings.cats = selectable().filter(c => cats.has(c.id)).map(c => c.id);
@@ -1144,7 +1228,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   // ---------- Abgleich zwischen Geräten (nur in claude.ai, private Daten des angemeldeten Nutzers) ----------
   // Ablage: data/users/<id>/meta (Einstellungen, Ferien, laufender Timer) und data/users/<id>/m-JJJJ-MM (Einträge des Monats).
   // Gelöschte Einträge bleiben als {deleted:true} stehen, damit andere Geräte sie ebenfalls entfernen.
-  const META_KEYS = ['settings', 'offDays', 'holidayWeeks', 'presets', 'running', 'lastCat', 'lastPlace', 'timetable', 'customCats'];
+  const META_KEYS = ['settings', 'offDays', 'holidayWeeks', 'presets', 'running', 'lastCat', 'lastPlace', 'timetable', 'customCats', 'coreHours'];
   const metaOf = () => { const m = {}; for (const k of META_KEYS) m[k] = state[k] === undefined ? null : state[k]; return m; };
   const canon = v => v === null || typeof v !== 'object' ? JSON.stringify(v) : Array.isArray(v) ? '[' + v.map(canon).join(',') + ']' : '{' + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
   const monthKey = t => { const d = new Date(t); return `m-${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
@@ -1261,6 +1345,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     for (const k of ['offDays', 'holidayWeeks']) if (data[k]) state[k] = Object.assign({}, data[k], state[k] || {});
     if (data.settings && !state.settings) state.settings = data.settings;
     if (data.timetable && !state.timetable) state.timetable = data.timetable;
+    if (data.coreHours && !state.coreHours) state.coreHours = data.coreHours;
     if (Array.isArray(data.customCats)) { const have = new Set(ownCats().map(c => c.id)); state.customCats = [...ownCats(), ...data.customCats.filter(c => c && c.id && !have.has(c.id))]; }
     const exported = Date.parse(data.exportedAt); if (exported) state.lastBackup = Math.max(state.lastBackup || 0, exported);
     savedBodies = new Map(state.entries.map(e => [e.id, bodyOf(e)]));
