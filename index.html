@@ -181,6 +181,14 @@ input[type=date], input[type=time] { -webkit-appearance: none; appearance: none;
 input::-webkit-date-and-time-value { text-align: left; }
 .sheet .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; }
 .sheet .actions div { display: flex; gap: 8px; margin-left: auto; }
+.azwarn, .azday { background: color-mix(in srgb, var(--tz3) 16%, var(--surface)); color: var(--ink); padding: 10px 12px; border-radius: 10px; font-size: .92rem; margin: 0 0 6px; border: 0; text-align: left; font: inherit; }
+.azday { display: grid; gap: 3px; width: 100%; cursor: pointer; }
+.azday span { font-size: .9rem; }
+.wbar { height: 10px; border-radius: 6px; background: var(--line); overflow: hidden; margin: 0 0 6px; }
+.wbar i { display: block; height: 100%; background: var(--accent); border-radius: 6px; transition: width .4s; }
+.wbar-txt { margin: 0; }
+.wtop { padding: 0 2px; }
+.wtop:empty { display: none; }
 .warn { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); color: var(--danger); padding: 10px 12px; border-radius: 10px; font-size: .92rem; margin: 0; }
 .headright { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .soll { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -318,17 +326,61 @@ input::-webkit-date-and-time-value { text-align: left; }
   const coreFor = ts => { const wd = new Date(ts).getDay(); return (state.coreHours && state.coreHours[wd]) || []; };
   // Tagesabschnitte (Stunden ab Mitternacht; Nacht reicht bis 6 Uhr des Folgetags)
   const TZ = [{ id: 'vormittag', name: 'Vormittag', a: 6, b: 12 }, { id: 'nachmittag', name: 'Nachmittag', a: 12, b: 17 }, { id: 'abend', name: 'Abend', a: 17, b: 22 }, { id: 'nacht', name: 'Nacht', a: 22, b: 30 }];
-  function tzSum(from, to) {
-    const by = { vormittag: 0, nachmittag: 0, abend: 0, nacht: 0 }; let core = 0, total = 0;
-    for (const e of allEntries()) {
-      const s0 = Math.max(e.start, from), e0 = Math.min(e.end, to); if (e0 <= s0) continue;
-      total += e0 - s0;
-      for (let d = addDays(startOfDay(s0), -1); d < e0; d = addDays(d, 1)) {
-        for (const z of TZ) by[z.id] += Math.max(0, Math.min(e0, d + z.b * 3600000) - Math.max(s0, d + z.a * 3600000));
-        for (const [a, b] of coreFor(d)) core += Math.max(0, Math.min(e0, d + b * 60000) - Math.max(s0, d + a * 60000));
-      }
+  // Zeitspanne [s0, e0) auf Tagesabschnitte und Kernarbeitszeit verteilen
+  function tzAdd(t, s0, e0) {
+    t.total += e0 - s0;
+    for (let d = addDays(startOfDay(s0), -1); d < e0; d = addDays(d, 1)) {
+      for (const z of TZ) t.by[z.id] += Math.max(0, Math.min(e0, d + z.b * 3600000) - Math.max(s0, d + z.a * 3600000));
+      for (const [a, b] of coreFor(d)) t.core += Math.max(0, Math.min(e0, d + b * 60000) - Math.max(s0, d + a * 60000));
     }
-    return { by, core, total };
+    return t;
+  }
+  const tzEmpty = () => ({ by: { vormittag: 0, nachmittag: 0, abend: 0, nacht: 0 }, core: 0, total: 0 });
+  function tzSum(from, to) {
+    const t = tzEmpty();
+    for (const e of allEntries()) { const s0 = Math.max(e.start, from), e0 = Math.min(e.end, to); if (e0 > s0) tzAdd(t, s0, e0); }
+    return t;
+  }
+  // Arbeitsschutz (Orientierung am Arbeitszeitgesetz): Höchstarbeitszeit, Pausen, Ruhezeit
+  const MIN = 60000;
+  function dayWork(day) {
+    const list = state.entries.filter(x => x.start >= day && x.start < day + DAY).sort((a, b) => a.start - b.start);
+    const blocks = []; // überlappende Einträge zusammenfassen
+    for (const x of list) { const l = blocks[blocks.length - 1]; if (l && x.start <= l.b) l.b = Math.max(l.b, x.end); else blocks.push({ a: x.start, b: x.end }); }
+    let work = 0, pause = 0, run = 0, longest = 0;
+    blocks.forEach((k, i) => {
+      const gap = i ? k.a - blocks[i - 1].b : 0;
+      if (gap >= 15 * MIN) { pause += gap; run = 0; }
+      run += k.b - k.a; work += k.b - k.a; longest = Math.max(longest, run);
+    });
+    return { work, pause, longest, first: blocks.length ? blocks[0].a : null, last: blocks.length ? blocks[blocks.length - 1].b : null };
+  }
+  function azHints(day) {
+    const w = dayWork(day), out = []; if (!w.work) return out;
+    const mins = ms => Math.round(ms / MIN);
+    if (w.work > 10 * 3600000) out.push(`${fmtDur(w.work)} h gearbeitet, erlaubt sind höchstens 10 Stunden am Tag.`);
+    const need = w.work > 9 * 3600000 ? 45 : w.work > 6 * 3600000 ? 30 : 0;
+    if (need && mins(w.pause) < need) out.push(`Bei ${fmtDur(w.work)} h Arbeit sind ${need} Min. Pause vorgeschrieben, erfasst sind ${mins(w.pause)} Min.`);
+    else if (w.longest > 6 * 3600000) out.push(`${fmtDur(w.longest)} h am Stück ohne Pause. Spätestens nach 6 Stunden ist eine Pause vorgeschrieben.`);
+    const prev = dayWork(addDays(day, -1));
+    if (prev.last && w.first - prev.last < 11 * 3600000) out.push(`Nur ${fmtDur(Math.max(0, w.first - prev.last))} h Ruhezeit seit dem Vortag, vorgeschrieben sind 11 Stunden.`);
+    return out;
+  }
+  const AZ_NOTE = 'Orientierung an Arbeitszeitgesetz und EU-Arbeitszeitrichtlinie: höchstens 10 Stunden am Tag, ab 6 Stunden 30 Min. und ab 9 Stunden 45 Min. Pause (in Abschnitten von mindestens 15 Min.), 11 Stunden Ruhezeit zwischen zwei Arbeitstagen und im Schnitt von 4 Monaten höchstens 48 Stunden pro Woche.';
+  // Durchschnitt pro Woche über die letzten 17 Wochen (rund 4 Monate) bis einschließlich der Woche ab „from“
+  function avgWeek(from) {
+    const first = startOfWeek(sinceTs()), a = Math.max(first, addDays(from, -16 * 7));
+    const n = Math.round((from - a) / (7 * DAY)) + 1; if (n < 4) return null;
+    return { n, avg: sumRange(a, addDays(from, 7)).total / n };
+  }
+  function azHTML(from) {
+    const days = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(from, i)).map(d => ({ d, h: azHints(d) })).filter(x => x.h.length);
+    const av = avgWeek(from), over = av && av.avg > 48 * 3600000;
+    if (!days.length && !over) return '';
+    return `<section class="panel"><h2>Arbeitsschutz</h2>
+      ${over ? `<p class="azwarn">Im Schnitt der letzten ${av.n} Wochen hast du ${fmtDur(av.avg)} h pro Woche gearbeitet. Erlaubt sind im Schnitt von 4 Monaten höchstens 48 Stunden.</p>` : ''}
+      <div style="display:grid;gap:8px">${days.map(x => `<button class="azday" data-day="${x.d}"><b>${fmtDay(x.d)}</b>${x.h.map(t => `<span>${t}</span>`).join('')}</button>`).join('')}</div>
+      <p class="hint" style="margin-top:10px">${AZ_NOTE}</p></section>`;
   }
   // „Was ist neu“: bei jedem Update einen Eintrag mit höherem v ergänzen
   const CHANGES = [
@@ -365,6 +417,13 @@ input::-webkit-date-and-time-value { text-align: left; }
     ] },
     { v: 9, items: [
       'Zeit nachtragen: Der Vorschlag für „Von“ beginnt dort, wo der letzte Eintrag des Tages endet. Wählst du ein anderes Datum, passt sich der Vorschlag an. Hat der Tag noch keine Einträge, beginnt er um 7:30.',
+    ] },
+    { v: 10, items: [
+      'Excel-Export: Übersicht, Einträge und Wochen zeigen jetzt auch die Stunden je Tagesabschnitt (Vormittag, Nachmittag, Abend, Nacht) und, falls eingetragen, in und außerhalb der Kernarbeitszeit.',
+    ] },
+    { v: 11, items: [
+      'Arbeitsschutz: In Auswertung → Woche weist die App auf Tage hin, an denen du mehr als 10 Stunden gearbeitet hast, die vorgeschriebene Pause fehlt (30 Min. ab 6 Stunden, 45 Min. ab 9 Stunden) oder weniger als 11 Stunden Ruhezeit seit dem Vortag lagen. Außerdem, wenn du im Schnitt der letzten 4 Monate mehr als 48 Stunden pro Woche arbeitest. Pausen sind Lücken von mindestens 15 Minuten zwischen deinen Einträgen.',
+      'Startbildschirm: Ein Balken ganz oben zeigt, wie viel vom Wochensoll du schon geschafft hast.',
     ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
@@ -488,7 +547,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     const todaySum = sumRange(today, today + DAY).total;
     const ws = startOfWeek(Date.now());
     const weekSum = sumRange(ws, ws + 7 * DAY).total;
-    let html = '';
+    let html = `<div class="wtop" id="weekBar">${weekBarHTML(ws, weekSum)}</div>`;
     // Läuft der Timer ungewöhnlich lange oder seit gestern, nachfragen
     if (r && (Date.now() - r.start > LONG_RUN || startOfDay(r.start) < today) && !(r.okUntil && Date.now() < r.okUntil)) {
       const sug = Math.min(r.start + 4 * 3600000, Date.now());
@@ -699,6 +758,19 @@ input::-webkit-date-and-time-value { text-align: left; }
       <div><span class="label">Saldo</span><b class="num saldo ${diff >= 0 ? 'plus' : 'minus'}">${fmtSigned(diff)}</b></div>
     </div>`;
   }
+  // Soll der ganzen Woche (nicht nur bis heute) für den Balken auf dem Startbildschirm
+  function weekSollFull(ws) {
+    const since = sinceTs(); let n = 0;
+    for (let i = 0; i < 5; i++) { const d = addDays(ws, i); if (d >= startOfDay(since) && !isOff(d) && !isHoliday(d)) n++; }
+    return n * dailySoll();
+  }
+  function weekBarHTML(ws, ist) {
+    if (isHoliday(ws)) return `<p class="hint wbar-txt">Ferienwoche, kein Soll. Alles zählt als Plus.</p>`;
+    const soll = weekSollFull(ws); if (!soll) return '';
+    const pct = Math.min(100, ist / soll * 100), rest = soll - ist;
+    return `<div class="wbar" role="img" aria-label="${fmtDur(ist)} von ${fmtDur(soll)} Stunden Wochensoll"><i style="width:${pct}%"></i></div>
+      <p class="hint wbar-txt">${fmtDur(ist)} von ${fmtDur(soll)} h Wochensoll · ${rest > 0 ? `noch ${fmtDur(rest)} h` : `<b class="saldo plus">${fmtSigned(-rest)} h</b>`}</p>`;
+  }
   function toggleHoliday(mondayKey) {
     state.holidayWeeks = state.holidayWeeks || {};
     state.holidayWeeks[mondayKey] = !state.holidayWeeks[mondayKey];
@@ -737,6 +809,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       </section>`;
       if (s.total) html += `<section class="panel"><h2>Tagesverlauf</h2><p class="hint">Wann du gearbeitet hast${state.coreHours ? '. Gestrichelt umrandet: deine Kernarbeitszeit' : ''}. Tag antippen für Details.</p>${timelineHTML(from)}
         <div class="tzlegend">${state.coreHours ? '<span><i></i>Kernarbeitszeit</span>' : ''}${CATS.filter(c => s.byCat[c.id]).map(c => `<span><i style="background:${c.color};width:10px"></i>${c.name}</span>`).join('')}</div></section>`;
+      html += azHTML(from);
       html += tzHTML(from, to);
       if (s.total) html += `<section class="panel"><h2>Nach Tätigkeit</h2>${catListHTML(s.byCat, s.total)}</section>`;
     } else if (period === 'monat') {
@@ -1004,13 +1077,17 @@ input::-webkit-date-and-time-value { text-align: left; }
     const wb = X.utils.book_new();
 
     // Übersicht
-    const s = sumRange(from, to), soll = sollRange(from, to);
+    const s = sumRange(from, to), soll = sollRange(from, to), tz = tzSum(from, to), hasCore = !!state.coreHours;
+    const tzCols = t => [...TZ.map(z => hrs(t.by[z.id])), ...(hasCore ? [hrs(t.core), hrs(t.total - t.core)] : [])];
+    const tzHead = [...TZ.map(z => z.name), ...(hasCore ? ['In Kernzeit', 'Außerhalb Kernzeit'] : [])];
     X.utils.book_append_sheet(wb, sheet([
       ['Arbeitszeitnachweis', ''],
       ['Zeitraum', `${fmtShort(from)}${new Date(from).getFullYear()} – ${fmtShort(addDays(to, -1))}${new Date(addDays(to, -1)).getFullYear()}`],
       ['Ist (Stunden)', hrs(s.total)],
       ['davon Schule', hrs(s.byPlace.schule)],
       ['davon Zuhause', hrs(s.byPlace.zuhause)],
+      ...TZ.map(z => [`davon ${z.name} (${z.a}–${z.b % 24} Uhr)`, hrs(tz.by[z.id])]),
+      ...(hasCore ? [['davon in der Kernarbeitszeit', hrs(tz.core)], ['davon außerhalb der Kernarbeitszeit', hrs(tz.total - tz.core)]] : []),
       ['Soll (Stunden)', hrs(soll)],
       ['Saldo (Stunden)', hrs(s.total - soll)],
       ['Jahressoll (Stunden)', st.yearly],
@@ -1021,19 +1098,20 @@ input::-webkit-date-and-time-value { text-align: left; }
     ], { 1: '0.00' }, [28, 26]), 'Übersicht');
 
     // Einträge
-    const rows = [['Datum', 'Tag', 'KW', 'Beginn', 'Ende', 'Dauer', 'Stunden', 'Tätigkeit', 'Ort', 'Notiz']];
-    for (const e of entries) rows.push([xlDate(e.start), WD[new Date(e.start).getDay()], isoWeek(e.start).week, xlTime(e.start), xlTime(e.end), (e.end - e.start) / DAY, hrs(e.end - e.start), plain(catById(e.cat).name), PLACES[e.place], e.note || '']);
-    X.utils.book_append_sheet(wb, sheet(rows, { 0: 'dd\\.mm\\.yyyy', 3: 'hh:mm', 4: 'hh:mm', 5: '[h]:mm', 6: '0.00' }, [12, 5, 5, 8, 8, 8, 9, 22, 10, 40]), 'Einträge');
+    const rows = [['Datum', 'Tag', 'KW', 'Beginn', 'Ende', 'Dauer', 'Stunden', 'Tätigkeit', 'Ort', ...tzHead, 'Notiz']];
+    for (const e of entries) rows.push([xlDate(e.start), WD[new Date(e.start).getDay()], isoWeek(e.start).week, xlTime(e.start), xlTime(e.end), (e.end - e.start) / DAY, hrs(e.end - e.start), plain(catById(e.cat).name), PLACES[e.place], ...tzCols(tzAdd(tzEmpty(), e.start, e.end)), e.note || '']);
+    const ef = { 0: 'dd\\.mm\\.yyyy', 3: 'hh:mm', 4: 'hh:mm', 5: '[h]:mm', 6: '0.00' }; tzHead.forEach((_, i) => ef[9 + i] = '0.00');
+    X.utils.book_append_sheet(wb, sheet(rows, ef, [12, 5, 5, 8, 8, 8, 9, 22, 10, ...tzHead.map(h => Math.max(10, h.length + 1)), 40]), 'Einträge');
 
     // Wochen
     const XCATS = CATS.filter(c => !c.deleted || state.entries.some(e => e.cat === c.id));
-    const wk = [['KW', 'Von', 'Bis', 'Art', 'Ist', 'Soll', 'Saldo', 'Schule', 'Zuhause', ...XCATS.map(c => plain(c.raw || c.name))]];
+    const wk = [['KW', 'Von', 'Bis', 'Art', 'Ist', 'Soll', 'Saldo', 'Schule', 'Zuhause', ...tzHead, ...XCATS.map(c => plain(c.raw || c.name))]];
     for (let w = startOfWeek(from); w < to; w = addDays(w, 7)) {
       const a = Math.max(w, from), b = Math.min(addDays(w, 7), to), x = sumRange(a, b), so = sollRange(a, b);
-      wk.push([isoWeek(w).week, xlDate(a), xlDate(addDays(b, -1)), isHoliday(w) ? 'Ferien' : 'Unterricht', hrs(x.total), hrs(so), hrs(x.total - so), hrs(x.byPlace.schule), hrs(x.byPlace.zuhause), ...XCATS.map(c => hrs(x.byCat[c.id] || 0))]);
+      wk.push([isoWeek(w).week, xlDate(a), xlDate(addDays(b, -1)), isHoliday(w) ? 'Ferien' : 'Unterricht', hrs(x.total), hrs(so), hrs(x.total - so), hrs(x.byPlace.schule), hrs(x.byPlace.zuhause), ...tzCols(tzSum(a, b)), ...XCATS.map(c => hrs(x.byCat[c.id] || 0))]);
     }
     const wf = { 1: 'dd\\.mm\\.yyyy', 2: 'dd\\.mm\\.yyyy' }; for (let c = 4; c < wk[0].length; c++) wf[c] = '0.00'; wf[6] = '+0.00;-0.00;0.00';
-    X.utils.book_append_sheet(wb, sheet(wk, wf, [5, 11, 11, 10, 8, 8, 8, 8, 8, ...XCATS.map(c => Math.max(9, plain(c.raw || c.name).length + 1))]), 'Wochen');
+    X.utils.book_append_sheet(wb, sheet(wk, wf, [5, 11, 11, 10, 8, 8, 8, 8, 8, ...tzHead.map(h => Math.max(10, h.length + 1)), ...XCATS.map(c => Math.max(9, plain(c.raw || c.name).length + 1))]), 'Wochen');
 
     // Tätigkeiten
     const per = {}; for (const c of XCATS) per[c.id] = { schule: 0, zuhause: 0 };
@@ -1076,6 +1154,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     const gaps = dayGaps(day);
     $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dyTitle">
       <div class="day-head"><h2 id="dyTitle">${fmtDay(day)}</h2><span class="num">${fmtDur(tot)} h</span></div>
+      ${azHints(day).map(t => `<p class="azwarn">${t}</p>`).join('')}
       ${list.length ? `<div style="display:grid;gap:6px;margin:8px 0 4px">${list.map(entryHTML).join('')}</div><p class="hint">Eintrag antippen, um ihn zu korrigieren.</p>` : '<p class="hint">An diesem Tag ist noch nichts eingetragen.</p>'}
       <div class="actions">
         <div>${gaps.length ? `<button class="btn" id="dyGaps">Lücken füllen (${gaps.length})</button>` : ''}</div>
@@ -1448,7 +1527,9 @@ input::-webkit-date-and-time-value { text-align: left; }
       const t = startOfDay(Date.now()), ws = startOfWeek(Date.now());
       const a = document.getElementById('sumToday'), b = document.getElementById('sumWeek');
       if (a) a.textContent = fmtDur(sumRange(t, t + DAY).total) + ' h';
-      if (b) b.textContent = fmtDur(sumRange(ws, ws + 7 * DAY).total) + ' h';
+      const wsum = sumRange(ws, ws + 7 * DAY).total;
+      if (b) b.textContent = fmtDur(wsum) + ' h';
+      const wb = document.getElementById('weekBar'); if (wb) wb.innerHTML = weekBarHTML(ws, wsum);
     }
   }, 1000);
   // Andere Tabs/Fenster: Änderungen übernehmen

@@ -8,8 +8,10 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Wochen-, Monats- und Schuljahressummen mit Soll und Saldo; in der Wochengrafik einen Tag antippen, um dort direkt nachzutragen oder zu korrigieren
 - Tagesverlauf je Woche und Auswertung nach Tageszeit (Vormittag, Nachmittag, Abend, Nacht), optional mit eigener Kernarbeitszeit
 - Timer rundet beim Stoppen auf volle Minuten (ab 30 Sekunden auf)
+- Balken auf dem Startbildschirm zeigt, wie viel vom Wochensoll schon geschafft ist
+- Arbeitsschutz-Hinweise (Orientierung an Arbeitszeitgesetz und EU-Arbeitszeitrichtlinie): mehr als 10 Stunden am Tag, fehlende Pausen, zu kurze Ruhezeit, mehr als 48 Stunden im Schnitt
 - Jahressoll (Standard 1805 h auf 40 Unterrichtswochen), Ferienwochen ohne Soll (Arbeit in den Ferien zählt als Plus) und freie Tage
-- Export als Excel-Datei
+- Export als Excel-Datei, auch mit Stunden je Tagesabschnitt und Kernarbeitszeit
 - Fragt nach, wenn der Timer über 10 Stunden oder seit gestern läuft, und lässt das Ende direkt korrigieren
 - Die drei meistgenutzten Tätigkeiten stehen oben, der Ort wird direkt neben „Start“ gewählt
 - Zeigt nach einem Update einmal kurz, was neu ist
