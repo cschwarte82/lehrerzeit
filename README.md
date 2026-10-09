@@ -31,5 +31,5 @@ Alle Daten bleiben auf dem eigenen Gerät. Es gibt kein Konto und keinen Server,
 
 ## Einstellungen anpassen
 Oben rechts „Einstellungen“: Jahressoll, Unterrichtswochen, Beschäftigungsumfang (Teilzeit) und Schuljahresbeginn.
-Unter „Meine Tätigkeiten“ wählst du mindestens 4 der 16 Tätigkeiten aus, die du brauchst. Die anderen verschwinden aus der Auswahl, bereits erfasste Zeiten bleiben erhalten.
+Unter „Meine Tätigkeiten“ wählst du mindestens 4 der 16 Tätigkeiten aus, die du brauchst. Die anderen verschwinden aus der Auswahl, bereits erfasste Zeiten bleiben erhalten. Unter „Eigene Tätigkeiten“ kannst du bis zu 4 eigene ergänzen, z. B. „Ganztag“ oder „Sport-AG“.
 Ferienwochen legst du unter „Auswertung → Schuljahr“ fest. Die NRW-Ferien 2026/27 und 2027/28 sind bereits eingetragen.
