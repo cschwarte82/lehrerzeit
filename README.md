@@ -4,7 +4,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 
 ## Was sie kann
 - Arbeitszeit per Start/Stopp erfassen, nach Tätigkeit (16 zur Auswahl, z. B. Unterricht, Vor-/Nachbereitung, Korrekturen, Lernzeit, Administration) und Ort (Schule/Zuhause)
-- Einträge nachträglich korrigieren oder nachtragen; warnt bei Überschneidungen, Löschen lässt sich kurz rückgängig machen
+- Einträge nachträglich korrigieren oder nachtragen (der Vorschlag schließt an den letzten Eintrag des Tages an); warnt bei Überschneidungen, Löschen lässt sich kurz rückgängig machen
 - Wochen-, Monats- und Schuljahressummen mit Soll und Saldo; in der Wochengrafik einen Tag antippen, um dort direkt nachzutragen oder zu korrigieren
 - Tagesverlauf je Woche und Auswertung nach Tageszeit (Vormittag, Nachmittag, Abend, Nacht), optional mit eigener Kernarbeitszeit
 - Timer rundet beim Stoppen auf volle Minuten (ab 30 Sekunden auf)
