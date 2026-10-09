@@ -12,6 +12,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Die drei meistgenutzten Tätigkeiten stehen oben, der Ort wird direkt neben „Start“ gewählt
 - Zeigt nach einem Update einmal kurz, was neu ist
 - Optional: Stundenplan hinterlegen und beim Nachtragen eines Tages die Unterrichtsblöcke mit einem Tipp einfügen (danach änderbar)
+- Beim Nachtragen fragt die App, wie Lücken zwischen Einträgen gefüllt werden sollen (eine Tätigkeit antippen oder „Nicht füllen“)
 
 ## Installieren
 - **iPhone (Safari):** Link öffnen → Teilen-Symbol → „Zum Home-Bildschirm“.
