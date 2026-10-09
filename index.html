@@ -292,6 +292,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     { v: 2, items: [
       'Stundenplan fürs Nachtragen: Unterrichtszeiten einmal unter Einstellungen → Mein Stundenplan eintragen. Beim Nachtragen eines Tages fügst du sie dann mit einem Tipp ein und kannst jeden Block danach noch ändern.',
     ] },
+    { v: 3, items: [
+      'Lücken füllen: Trägst du einen Tag nach, fragt die App bei jeder Lücke zwischen zwei Einträgen, ob du sie mit einer Tätigkeit füllen möchtest, z. B. die Pause mit „Kollegialer Austausch“. „Nicht füllen“ lässt die Lücke frei.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -937,9 +940,10 @@ input::-webkit-date-and-time-value { text-align: left; }
         const blocks = ttDay().filter(([a, b]) => !state.entries.some(x => x.start < day + b * 60000 && x.end > day + a * 60000));
         if (!blocks.length) return draw('Zu diesen Zeiten ist an dem Tag schon etwas erfasst. Bitte die Einträge unter „Einträge“ prüfen.');
         for (const [a, b] of blocks) state.entries.push({ id: uid(), cat: 'unterricht', place: 'schule', note: '', start: day + a * 60000, end: day + b * 60000 });
-        save(); close(); render();
+        save(); render();
         const skipped = ttDay().length - blocks.length;
-        toast(`${blocks.length} Unterrichtsblock${blocks.length > 1 ? 'e' : ''} eingefügt${skipped ? `, ${skipped} übersprungen (schon belegt)` : ''}. Antippen zum Ändern.`);
+        toast(`${blocks.length} ${blocks.length > 1 ? 'Unterrichtsblöcke' : 'Unterrichtsblock'} eingefügt${skipped ? `, ${skipped} übersprungen (schon belegt)` : ''}. Antippen zum Ändern.`);
+        askGaps(day);
       };
       const del = document.getElementById('edDel'); if (del) del.onclick = () => { keep(); confirmDel = true; redraw(); };
       const yes = document.getElementById('edDelYes'); if (yes) yes.onclick = () => { state.entries = state.entries.filter(x => x.id !== entry.id); save(); close(); render(); toast('Eintrag gelöscht'); };
@@ -954,11 +958,49 @@ input::-webkit-date-and-time-value { text-align: left; }
         if (cat === 'sonstiges' && !document.getElementById('edNote').value.trim() && !noteAsked) { noteAsked = true; e.note = ''; e._d = d; e._f = f; e._t = t; return draw('Bei „Sonstiges“ bitte kurz notieren, worum es geht. Nochmal „Speichern“ tippen, um ohne Notiz zu speichern.'); }
         const rec = { cat, place, note: document.getElementById('edNote').value.trim(), start, end };
         if (isNew) state.entries.push({ id: uid(), ...rec }); else Object.assign(entry, rec);
-        save(); close(); render(); toast(isNew ? 'Zeit nachgetragen' : 'Änderung gespeichert');
+        save(); render(); toast(isNew ? 'Zeit nachgetragen' : 'Änderung gespeichert');
+        if (isNew && end < Date.now()) askGaps(startOfDay(start)); else close();
       };
       if (e._d) { document.getElementById('edDate').value = e._d; document.getElementById('edFrom').value = e._f; document.getElementById('edTo').value = e._t; }
     }
     const redraw = () => draw();
+    draw();
+  }
+  // Nach dem Nachtragen: Lücken zwischen Einträgen eines Tages nacheinander abfragen
+  function dayGaps(day) {
+    const list = state.entries.filter(x => x.end > day && x.start < day + DAY).sort((a, b) => a.start - b.start);
+    const done = (state.gapsSkipped && state.gapsSkipped[keyOf(day)]) || [], gaps = [];
+    let prev = null;
+    for (const x of list) {
+      if (prev && x.start - prev.end >= 5 * 60000 && !done.includes(`${prev.end}-${x.start}`)) gaps.push({ a: prev.end, b: x.start, place: prev.place });
+      if (!prev || x.end > prev.end) prev = x;
+    }
+    return gaps;
+  }
+  function askGaps(day) {
+    const gaps = dayGaps(day);
+    if (!gaps.length) { close(); return; }
+    const g = gaps[0]; let place = g.place || 'schule';
+    const draw = () => {
+      $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="gpTitle">
+        <h2 id="gpTitle">Lücke füllen?</h2>
+        <p>Wie möchtest du die Lücke von <b>${fmtTime(g.a)}</b> bis <b>${fmtTime(g.b)}</b> (${fmtDur(g.b - g.a)} h) am ${fmtShort(day)} füllen?${gaps.length > 1 ? ` <span class="hint">Noch ${gaps.length - 1} weitere Lücke${gaps.length > 2 ? 'n' : ''}.</span>` : ''}</p>
+        <div class="row" style="margin-bottom:6px"><button class="btn" id="gpNo">Nicht füllen</button><button class="btn ghost" id="gpStop">Später</button></div>
+        <span class="label">Ort</span>${placeHTML(place, 'data-gplace')}
+        <span class="label">Tätigkeit antippen</span>${chipsHTML(null, 'data-gcat')}
+      </div></div>`;
+      $modal.querySelectorAll('[data-gplace]').forEach(b => b.onclick = () => { place = b.dataset.gplace; draw(); });
+      $modal.querySelectorAll('[data-gcat]').forEach(b => b.onclick = () => {
+        state.entries.push({ id: uid(), cat: b.dataset.gcat, place, note: '', start: g.a, end: g.b });
+        save(); render(); toast(`${catById(b.dataset.gcat).name} eingetragen, ${fmtTime(g.a)}–${fmtTime(g.b)}`); askGaps(day);
+      });
+      document.getElementById('gpNo').onclick = () => {
+        state.gapsSkipped = state.gapsSkipped || {}; const k = keyOf(day);
+        state.gapsSkipped[k] = [...(state.gapsSkipped[k] || []), `${g.a}-${g.b}`];
+        save(); askGaps(day);
+      };
+      document.getElementById('gpStop').onclick = close;
+    };
     draw();
   }
   function close() { $modal.innerHTML = ''; }
