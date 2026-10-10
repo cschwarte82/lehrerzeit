@@ -5,7 +5,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 ## Was sie kann
 - Arbeitszeit per Start/Stopp erfassen, nach Tätigkeit (16 zur Auswahl, z. B. Unterricht, Vor-/Nachbereitung, Korrekturen, Lernzeit, Administration) und Ort (Schule/Zuhause)
 - Einträge nachträglich korrigieren oder nachtragen (der Vorschlag schließt an den letzten Eintrag des Tages an); warnt bei Überschneidungen, Löschen lässt sich kurz rückgängig machen
-- Wochen-, Monats- und Schuljahressummen mit Soll und Saldo; in der Wochengrafik einen Tag antippen, um dort direkt nachzutragen oder zu korrigieren
+- Wochen-, Monats- und Schuljahressummen mit Soll und Saldo; in der Wochengrafik einen Tag antippen oder unter „Auswertung → Tag“ einen einzelnen Tag ansehen, um dort direkt nachzutragen oder zu korrigieren
 - Tagesverlauf je Woche und Auswertung nach Tageszeit (Vormittag, Nachmittag, Abend, Nacht), optional mit eigener Kernarbeitszeit
 - Timer rundet beim Stoppen auf volle Minuten (ab 30 Sekunden auf)
 - Balken auf dem Startbildschirm zeigt, wie viel vom Wochensoll schon geschafft ist
@@ -13,7 +13,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Jahressoll (Standard 1805 h auf 40 Unterrichtswochen), Ferienwochen ohne Soll (Arbeit in den Ferien zählt als Plus) und freie Tage
 - Export als Excel-Datei, auch mit Stunden je Tagesabschnitt und Kernarbeitszeit
 - Fragt nach, wenn der Timer über 10 Stunden oder seit gestern läuft, und lässt das Ende direkt korrigieren
-- Die drei meistgenutzten Tätigkeiten stehen oben, der Ort wird direkt neben „Start“ gewählt
+- Die drei meistgenutzten Tätigkeiten stehen oben, der Ort wird direkt neben „Start“ gewählt (werktags ist „Schule“ vorausgewählt, am Wochenende und in den Ferien „Zuhause“)
 - Zeigt nach einem Update einmal kurz, was neu ist
 - Optional: Stundenplan hinterlegen und beim Nachtragen eines Tages die Unterrichtsblöcke mit einem Tipp einfügen (danach änderbar)
 - Beim Nachtragen fragt die App, wie Lücken zwischen Einträgen gefüllt werden sollen (eine Tätigkeit antippen oder „Nicht füllen“)

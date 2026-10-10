@@ -152,6 +152,10 @@ input[type=text], input[type=date], input[type=time], select { width: 100%; min-
 .tl .day { position: relative; background: none; border: 0; padding: 0; cursor: pointer; }
 .tl .core { position: absolute; left: 3px; right: 3px; border-radius: 5px; background: color-mix(in srgb, var(--muted) 9%, transparent); border: 1.5px dashed color-mix(in srgb, var(--muted) 55%, transparent); box-sizing: border-box; }
 .tl .blk { position: absolute; left: 22%; right: 22%; border-radius: 3px; min-height: 2px; }
+.tl.one .plot { grid-template-columns: 1fr; height: 360px; }
+.tl.one .zones { height: 360px; }
+.tl.one .blk { left: 28%; right: 28%; }
+.tl.one .core { left: 18%; right: 18%; }
 .tl .days { grid-column: 2; display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; padding-top: 6px; }
 .tl .days b { display: block; font-size: .85rem; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
 .tl .days small { color: var(--muted); font-size: .72rem; }
@@ -425,6 +429,12 @@ input::-webkit-date-and-time-value { text-align: left; }
       'Arbeitsschutz: In Auswertung → Woche weist die App auf Tage hin, an denen du mehr als 10 Stunden gearbeitet hast, die vorgeschriebene Pause fehlt (30 Min. ab 6 Stunden, 45 Min. ab 9 Stunden) oder weniger als 11 Stunden Ruhezeit seit dem Vortag lagen. Außerdem, wenn du im Schnitt der letzten 4 Monate mehr als 48 Stunden pro Woche arbeitest. Pausen sind Lücken von mindestens 15 Minuten zwischen deinen Einträgen.',
       'Startbildschirm: Ein Balken ganz oben zeigt, wie viel vom Wochensoll du schon geschafft hast.',
     ] },
+    { v: 12, items: [
+      'Auswertung → Tag: ein Tag auf einen Blick mit Ist und Soll, einer großen Säule für den Tagesverlauf und allen Einträgen. Von hier aus kannst du nachtragen, korrigieren und Lücken füllen.',
+    ] },
+    { v: 13, items: [
+      'Ort: Montag bis Freitag ist jetzt „Schule“ vorausgewählt, am Wochenende und in den Ferien „Zuhause“. Beim Nachtragen richtet sich der Ort nach dem gewählten Tag. Du kannst ihn wie gewohnt umschalten.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -485,8 +495,11 @@ input::-webkit-date-and-time-value { text-align: left; }
   let weekAnchor = startOfWeek(Date.now());
   let monthAnchor = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); })();
   let period = 'woche';
+  let dayAnchor = startOfDay(Date.now());
   let yearAnchor = Date.now();
-  let sel = { cat: firstActive(state.lastCat), place: state.lastPlace, note: '' };
+  // Ort vorbelegen: Mo–Fr Schule, Sa/So und Ferienwochen Zuhause (von Hand umschaltbar); gesetzt beim ersten render()
+  const placeFor = t => [0, 6].includes(new Date(t).getDay()) || isHoliday(t) ? 'zuhause' : 'schule';
+  let sel = { cat: firstActive(state.lastCat), place: 'schule', placeDay: 0, note: '' };
   const $view = document.getElementById('view');
   const $modal = document.getElementById('modalRoot');
 
@@ -665,10 +678,10 @@ input::-webkit-date-and-time-value { text-align: left; }
       <span class="track"><i style="width:${byCat[c.id] / max * 100}%;background:${c.color}"></i></span></div>`).join('')}</div>`;
   }
   // Tagesverlauf: eine Säule je Tag, unten Vormittag, oben Nacht
-  function timelineHTML(from) {
+  function timelineHTML(from, n = 7) {
     const pos = h => (h - 6) / 24 * 100;
     const days = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < n; i++) {
       const d = addDays(from, i), H = 3600000;
       // je Tagesabschnitt von der unteren Linie aus stapeln (zeitliche Reihenfolge); frühe Arbeit vor 6 Uhr zählt zur Nacht
       const zoneOf = h => h < 6 || h >= 22 ? 3 : h < 12 ? 0 : h < 17 ? 1 : 2;
@@ -685,8 +698,12 @@ input::-webkit-date-and-time-value { text-align: left; }
       }
       // Kernarbeitszeit als durchgehender Balken nach Uhrzeit
       const core = coreFor(d).map(([ca, cb]) => { const x = Math.max(ca / 60, 6), y = Math.min(cb / 60, 30); return y > x ? `<i class="core" style="bottom:${pos(x)}%;height:${(y - x) / 24 * 100}%"></i>` : ''; }).join('');
-      days.push(`<button class="day" data-day="${d}" aria-label="${fmtDay(d)}: Einträge ansehen">${core}${blocks.join('')}</button>`);
+      days.push(n > 1 ? `<button class="day" data-day="${d}" aria-label="${fmtDay(d)}: Einträge ansehen">${core}${blocks.join('')}</button>` : `<div class="day">${core}${blocks.join('')}</div>`);
     }
+    if (n === 1) return `<div class="tl one">
+      <div class="zones">${TZ.map(z => `<span style="bottom:${(pos(z.a) + pos(z.b)) / 2}%">${z.name}</span>`).join('')}</div>
+      <div class="plot">${[6, 12, 17, 22, 30].map(h => `<i class="zl" style="bottom:${pos(h)}%"></i>`).join('')}${days.join('')}</div>
+    </div>`;
     return `<div class="tl">
       <div class="zones">${TZ.map(z => `<span style="bottom:${(pos(z.a) + pos(z.b)) / 2}%">${z.name}</span>`).join('')}</div>
       <div class="plot">${[6, 12, 17, 22, 30].map(h => `<i class="zl" style="bottom:${pos(h)}%"></i>`).join('')}${days.join('')}</div>
@@ -780,9 +797,28 @@ input::-webkit-date-and-time-value { text-align: left; }
   function renderAuswertung() {
     if (!state.entries.length && !state.running) { $view.innerHTML = emptyHTML(); bindEmpty(); return; }
     let html = `<div class="seg" role="group" aria-label="Zeitraum" style="align-self:center">
-      <button data-period="woche" aria-pressed="${period === 'woche'}">Woche</button><button data-period="monat" aria-pressed="${period === 'monat'}">Monat</button><button data-period="jahr" aria-pressed="${period === 'jahr'}">Schuljahr</button></div>`;
+      <button data-period="tag" aria-pressed="${period === 'tag'}">Tag</button><button data-period="woche" aria-pressed="${period === 'woche'}">Woche</button><button data-period="monat" aria-pressed="${period === 'monat'}">Monat</button><button data-period="jahr" aria-pressed="${period === 'jahr'}">Schuljahr</button></div>`;
     let from, to, label, yearWeeks = [];
-    if (period === 'woche') {
+    if (period === 'tag') {
+      from = dayAnchor; to = addDays(from, 1);
+      label = `Tag-${keyOf(from)}`;
+      const s = sumRange(from, to), today = startOfDay(Date.now()), wd = new Date(from).getDay();
+      const list = state.entries.filter(x => x.end > from && x.start < to).sort((a, b) => a.start - b.start);
+      const gaps = dayGaps(from);
+      html += `<section class="panel">
+        <div class="periodnav"><button class="btn" data-nav="-1" aria-label="Voriger Tag">‹</button>
+          <div class="title"><strong>${fmtDay(from)}</strong><span>${from === today ? 'Heute' : `KW ${isoWeek(from).week}`}${isHoliday(from) ? ' · Ferienwoche' : ''}${isOff(from) ? ` · ${OFF_REASONS[offReason(from)]}` : ''}</span></div>
+          <button class="btn" data-nav="1" aria-label="Nächster Tag">›</button></div>
+        ${sollHTML(s.total, from, to)}
+        <div class="split"><span>Schule <b>${fmtDur(s.byPlace.schule)} h</b></span><span>Zuhause <b>${fmtDur(s.byPlace.zuhause)} h</b></span></div>
+        ${azHints(from).map(t => `<p class="azwarn" style="margin-top:10px">${t}</p>`).join('')}
+      </section>`;
+      html += `<section class="panel"><h2>Tagesverlauf</h2>${s.total ? timelineHTML(from, 1) + `<div class="tzlegend">${state.coreHours && coreFor(from).length ? '<span><i></i>Kernarbeitszeit</span>' : ''}${CATS.filter(c => s.byCat[c.id]).map(c => `<span><i style="background:${c.color};width:10px"></i>${c.name}</span>`).join('')}</div>` : '<p class="hint">An diesem Tag ist noch nichts eingetragen.</p>'}</section>`;
+      html += `<section class="panel"><h2>Einträge</h2>
+        ${list.length ? `<div style="display:grid;gap:6px">${list.map(entryHTML).join('')}</div><p class="hint" style="margin-top:8px">Eintrag antippen, um ihn zu korrigieren.</p>` : ''}
+        <div class="row" style="margin-top:10px"><button class="btn primary" id="tdAdd">Zeit nachtragen</button>${gaps.length ? `<button class="btn" id="tdGaps">Lücken füllen (${gaps.length})</button>` : ''}${wd > 0 && wd < 6 && !isHoliday(from) ? `<button class="btn ghost" data-off="${keyOf(from)}">${isOff(from) ? 'Freien Tag ändern' : 'Als freien Tag markieren'}</button>` : ''}</div>
+      </section>`;
+    } else if (period === 'woche') {
       from = weekAnchor; to = addDays(from, 7);
       const { week, year } = isoWeek(from);
       label = `KW${pad(week)}-${year}`;
@@ -883,20 +919,26 @@ input::-webkit-date-and-time-value { text-align: left; }
     html += `<section class="panel">
       <h2>Excel-Export</h2>
       <p class="hint">Enthält alle Einträge, Wochensummen mit Soll und Saldo sowie die Summen nach Tätigkeit.</p>
-      <div class="row"><button class="btn primary" id="xlsPeriod">${period === 'woche' ? 'Diese Woche' : period === 'monat' ? 'Diesen Monat' : 'Dieses Schuljahr'} exportieren</button><button class="btn" id="xlsAll">Alles exportieren</button></div>
+      <div class="row"><button class="btn primary" id="xlsPeriod">${period === 'tag' ? 'Diesen Tag' : period === 'woche' ? 'Diese Woche' : period === 'monat' ? 'Diesen Monat' : 'Dieses Schuljahr'} exportieren</button><button class="btn" id="xlsAll">Alles exportieren</button></div>
       <div class="row" style="justify-content:space-between"><p class="hint" style="flex:1 1 200px">Soll: ${fmtNum(st.yearly)} h im Jahr${st.pct !== 100 ? ` bei ${fmtNum(st.pct)} %` : ''} auf ${fmtNum(st.weeks)} Unterrichtswochen, also ${fmtNum(weeklySoll() / 3600000)} h pro Unterrichtswoche (${fmtDur(dailySoll())} h pro Tag).</p><button class="btn ghost" id="openSettings2">Soll ändern</button></div>
     </section>`;
     $view.innerHTML = html;
     $view.querySelectorAll('[data-period]').forEach(b => b.onclick = () => { period = b.dataset.period; render(); });
     $view.querySelectorAll('[data-nav]').forEach(b => b.onclick = () => {
       const n = +b.dataset.nav;
-      if (period === 'woche') weekAnchor = addDays(weekAnchor, 7 * n);
+      if (period === 'tag') dayAnchor = addDays(dayAnchor, n);
+      else if (period === 'woche') weekAnchor = addDays(weekAnchor, 7 * n);
       else if (period === 'monat') { const d = new Date(monthAnchor); monthAnchor = new Date(d.getFullYear(), d.getMonth() + n, 1).getTime(); }
       else { const d = new Date(schoolYearStart(yearAnchor)); yearAnchor = new Date(d.getFullYear() + n, d.getMonth(), d.getDate()).getTime(); }
       render();
     });
     $view.querySelectorAll('[data-off]').forEach(b => b.onclick = () => openOffDay(b.dataset.off));
     $view.querySelectorAll('[data-day]').forEach(b => b.onclick = () => openDay(+b.dataset.day));
+    if (period === 'tag') {
+      $view.querySelectorAll('[data-entry]').forEach(b => b.onclick = () => openEditor(state.entries.find(e => e.id === b.dataset.entry)));
+      document.getElementById('tdAdd').onclick = () => openEditor(null, from);
+      const tg = document.getElementById('tdGaps'); if (tg) tg.onclick = () => askGaps(from);
+    }
     $view.querySelectorAll('[data-hw]').forEach(b => b.onclick = () => { if ((b.dataset.hw === '1') !== isHoliday(from)) toggleHoliday(keyOf(from)); });
     $view.querySelectorAll('[data-hwk]').forEach(b => b.onclick = () => toggleHoliday(b.dataset.hwk));
     const pn = document.getElementById('presetNRW'); if (pn) pn.onclick = () => { applyPreset('nrw-' + schoolYearLabel(from).replace('/', '-')); render(); toast('NRW-Ferien eingetragen'); };
@@ -1177,8 +1219,8 @@ input::-webkit-date-and-time-value { text-align: left; }
     let st = now - 3600000, en = now;
     if (isNew && day != null) [st, en] = suggest(day);
     else if (isNew && state.entries.some(x => x.end > startOfDay(now) && x.end <= now)) [st, en] = suggest(startOfDay(now));
-    const e = entry ? { ...entry } : { cat: sel.cat, place: sel.place, note: '', start: st, end: en };
-    let cat = catById(e.cat).id, place = e.place, confirmDel = false, noteAsked = false, overlapKey = null;
+    const e = entry ? { ...entry } : { cat: sel.cat, place: placeFor(st), note: '', start: st, end: en };
+    let cat = catById(e.cat).id, place = e.place, placeSet = !isNew, confirmDel = false, noteAsked = false, overlapKey = null;
     const dayTs = () => { const d = e._d || fmtDateInput(e.start); const [y, mo, da] = d.split('-').map(Number); return new Date(y, mo - 1, da).getTime(); };
     const ttDay = () => ttFor(dayTs());
     function draw(err) {
@@ -1201,12 +1243,12 @@ input::-webkit-date-and-time-value { text-align: left; }
         </div></div></div>`;
       const keep = () => { e.note = document.getElementById('edNote').value; const d = document.getElementById('edDate').value, f = document.getElementById('edFrom').value, t = document.getElementById('edTo').value; e._d = d; e._f = f; e._t = t; };
       $modal.querySelectorAll('[data-ecat]').forEach(b => b.onclick = () => { keep(); cat = b.dataset.ecat; redraw(); });
-      $modal.querySelectorAll('[data-eplace]').forEach(b => b.onclick = () => { keep(); place = b.dataset.eplace; redraw(); });
+      $modal.querySelectorAll('[data-eplace]').forEach(b => b.onclick = () => { keep(); place = b.dataset.eplace; placeSet = true; redraw(); });
       document.getElementById('edCancel').onclick = close;
       document.getElementById('ov').onclick = ev => { if (ev.target.id === 'ov') close(); };
       document.getElementById('edDate').onchange = () => {
         keep();
-        if (isNew && e._d) { const [y, mo, da] = e._d.split('-').map(Number); const [a, b] = suggest(new Date(y, mo - 1, da).getTime()); e._f = fmtTime(a); e._t = fmtTime(b); }
+        if (isNew && e._d) { const [y, mo, da] = e._d.split('-').map(Number); const t = new Date(y, mo - 1, da).getTime(), [a, b] = suggest(t); e._f = fmtTime(a); e._t = fmtTime(b); if (!placeSet) place = placeFor(t); }
         redraw();
       };
       const ttb = document.getElementById('edTT'); if (ttb) ttb.onclick = () => {
@@ -1320,6 +1362,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
   function render() {
     refreshCats();
+    if (startOfDay(Date.now()) !== sel.placeDay) { sel.place = placeFor(Date.now()); sel.placeDay = startOfDay(Date.now()); }
     const d = new Date(); const { week } = isoWeek(d);
     document.getElementById('todayLabel').textContent = `${fmtDay(d)} · KW ${week}`;
     if (view === 'erfassen') renderErfassen(); else if (view === 'eintraege') renderEintraege(); else renderAuswertung();
