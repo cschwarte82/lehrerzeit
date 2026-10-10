@@ -435,6 +435,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     { v: 13, items: [
       'Ort: Montag bis Freitag ist jetzt „Schule“ vorausgewählt, am Wochenende und in den Ferien „Zuhause“. Beim Nachtragen richtet sich der Ort nach dem gewählten Tag. Du kannst ihn wie gewohnt umschalten.',
     ] },
+    { v: 14, items: [
+      'Monatsnachweis als PDF: Unter Auswertung → Monat erstellst du eine Seite mit Ist, Soll, Saldo, den Wochen, Tätigkeiten und Tageszeiten. Deinen Namen dafür kannst du unter Einstellungen eintragen.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -917,9 +920,10 @@ input::-webkit-date-and-time-value { text-align: left; }
     }
     const st = settings();
     html += `<section class="panel">
-      <h2>Excel-Export</h2>
-      <p class="hint">Enthält alle Einträge, Wochensummen mit Soll und Saldo sowie die Summen nach Tätigkeit.</p>
-      <div class="row"><button class="btn primary" id="xlsPeriod">${period === 'tag' ? 'Diesen Tag' : period === 'woche' ? 'Diese Woche' : period === 'monat' ? 'Diesen Monat' : 'Dieses Schuljahr'} exportieren</button><button class="btn" id="xlsAll">Alles exportieren</button></div>
+      <h2>${period === 'monat' ? 'Nachweis und Excel-Export' : 'Excel-Export'}</h2>
+      ${period === 'monat' ? `<div class="row"><button class="btn primary" id="pdfMonth">Monatsnachweis als PDF</button></div><p class="hint">Eine Seite mit Ist, Soll und Saldo, den Wochen, Tätigkeiten und Tageszeiten, z. B. zum Ausdrucken oder Abgeben.</p>` : ''}
+      <p class="hint">Excel enthält alle Einträge, Wochensummen mit Soll und Saldo sowie die Summen nach Tätigkeit.</p>
+      <div class="row"><button class="btn ${period === 'monat' ? '' : 'primary'}" id="xlsPeriod">${period === 'tag' ? 'Diesen Tag' : period === 'woche' ? 'Diese Woche' : period === 'monat' ? 'Diesen Monat' : 'Dieses Schuljahr'} exportieren</button><button class="btn" id="xlsAll">Alles exportieren</button></div>
       <div class="row" style="justify-content:space-between"><p class="hint" style="flex:1 1 200px">Soll: ${fmtNum(st.yearly)} h im Jahr${st.pct !== 100 ? ` bei ${fmtNum(st.pct)} %` : ''} auf ${fmtNum(st.weeks)} Unterrichtswochen, also ${fmtNum(weeklySoll() / 3600000)} h pro Unterrichtswoche (${fmtDur(dailySoll())} h pro Tag).</p><button class="btn ghost" id="openSettings2">Soll ändern</button></div>
     </section>`;
     $view.innerHTML = html;
@@ -944,6 +948,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     const pn = document.getElementById('presetNRW'); if (pn) pn.onclick = () => { applyPreset('nrw-' + schoolYearLabel(from).replace('/', '-')); render(); toast('NRW-Ferien eingetragen'); };
     const ch = document.getElementById('clearHol'); if (ch) ch.onclick = () => { state.holidayWeeks = state.holidayWeeks || {}; for (const w of yearWeeks) if (state.holidayWeeks[keyOf(w)]) state.holidayWeeks[keyOf(w)] = false; save(); render(); toast('Markierungen in diesem Schuljahr entfernt'); };
     document.getElementById('xlsPeriod').onclick = () => exportExcel(from, to, label);
+    const pm = document.getElementById('pdfMonth'); if (pm) pm.onclick = () => exportMonthPDF(from, to);
     document.getElementById('xlsAll').onclick = () => {
       const first = state.entries.reduce((a, e) => Math.min(a, e.start), Infinity);
       const last = state.entries.reduce((a, e) => Math.max(a, e.end), Date.now());
@@ -986,6 +991,8 @@ input::-webkit-date-and-time-value { text-align: left; }
         <div class="field"><label class="label" for="stWeeks">Unterrichtswochen</label>
           <input type="text" inputmode="decimal" id="stWeeks" value="${fmtNum(st.weeks)}"></div>
       </div>
+      <div class="field"><label class="label" for="stName">Name für den Monatsnachweis (freiwillig)</label>
+        <input type="text" id="stName" value="${esc(st.name || '')}" autocomplete="name"></div>
       <p class="hint">So rechnet die App: Das Jahressoll (Vollzeit 1805 h, also rund 41 h pro Woche nach Abzug von Urlaub und Feiertagen) wird nur auf die Unterrichtswochen verteilt. Ferienwochen zählen so, als würdest du in ihnen nicht arbeiten, und haben kein Soll. Arbeitest du in den Ferien trotzdem, baust du in diesen Wochen ein Plus auf.</p>
       <div class="field"><label class="label" for="stPct">Beschäftigungsumfang (%)</label>
         <input type="text" inputmode="decimal" id="stPct" value="${fmtNum(st.pct)}">
@@ -1080,11 +1087,145 @@ input::-webkit-date-and-time-value { text-align: left; }
       state.timetable = Object.keys(tt).length ? tt : null;
       state.coreHours = Object.keys(ch).length ? ch : null;
       state.settings = { yearly: y, weeks: w, pct: p, since: since || null, yearStart: `${pad(+ys[2])}-${pad(+ys[1])}` };
+      const nm = document.getElementById('stName').value.trim(); if (nm) state.settings.name = nm.slice(0, 80);
       state.customCats = own.length ? own : null; refreshCats();
       if (cats.size < selectable().length) state.settings.cats = selectable().filter(c => cats.has(c.id)).map(c => c.id);
       sel.cat = firstActive(sel.cat);
       save(); close(); render(); toast('Einstellungen gespeichert');
     };
+  }
+
+  // ---------- Monatsnachweis (PDF) ----------
+  function loadJsPDF() {
+    if (window.jspdf) return Promise.resolve(window.jspdf.jsPDF);
+    return new Promise((res, rej) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      sc.onload = () => window.jspdf ? res(window.jspdf.jsPDF) : rej(new Error('load')); sc.onerror = () => rej(new Error('load'));
+      document.head.appendChild(sc);
+    });
+  }
+  // helle Farbwerte der Kategorien (wie --c1..--c20 im hellen Modus)
+  const PDF_COLORS = ['#1f6b57', '#2f6fd0', '#d43d3d', '#63b33a', '#f08c00', '#8f1d3f', '#12a4c4', '#e05fa8', '#e2bd00', '#0b2f5c', '#6b7280', '#7b3fe4', '#222222', '#c2c2c2', '#8d5a2b', '#7d8a00', '#00897b', '#ff7a5c', '#b39ddb', '#c8b273'];
+  const pdfColor = c => { const m = /--c(\d+)/.exec(c.color); const hex = m ? PDF_COLORS[+m[1] - 1] : '#6b7280'; return [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)); };
+  const TZ_PDF = [[63, 143, 111], [127, 183, 163], [226, 163, 58], [59, 74, 122]]; // wie --tz1..--tz4 hell
+  const hm = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+  async function exportMonthPDF(from, to) {
+    let PDF;
+    try { PDF = await loadJsPDF(); } catch (e) { toast('PDF-Modul nicht geladen. Bitte Internetverbindung prüfen.'); return; }
+    const st = settings(), m = new Date(from), title = `${MONTHS[m.getMonth()]} ${m.getFullYear()}`;
+    const h = ms => fmtDur(ms), sg = ms => (ms >= 0 ? '+' : '-') + fmtDur(Math.abs(ms));
+    const doc = new PDF({ unit: 'mm', format: 'a4' });
+    const L = 18, R = 192, W = R - L;
+    const GREEN = [31, 107, 87], INK = [30, 30, 30], MUTED = [115, 115, 115], LINE = [220, 220, 216], SOFT = [244, 244, 240], RED = [190, 55, 45];
+    const txt = (t, x, yy, o = {}) => { doc.setFont('helvetica', o.b ? 'bold' : 'normal'); doc.setFontSize(o.s || 9.5); doc.setTextColor(...(o.c || INK)); doc.text(String(t), x, yy, o.a ? { align: o.a } : undefined); };
+    const section = (t, yy) => { txt(t, L, yy, { b: true, s: 11.5, c: GREEN }); return yy + 6; };
+    const s = sumRange(from, to), soll = sollRange(from, to), diff = s.total - soll;
+    const hasCore = !!state.coreHours, tz = tzSum(from, to), CORE = [80, 80, 80];
+    const future = addDays(startOfDay(Date.now()), 1) < to;
+    let y = 22;
+    // Kopf
+    txt('Arbeitszeitnachweis', L, y, { b: true, s: 18, c: GREEN }); txt(title, R, y, { b: true, s: 18, c: INK, a: 'right' }); y += 7;
+    txt(st.name ? st.name : 'Name: ______________________________', L, y, { s: 10.5, c: st.name ? INK : MUTED });
+    txt(`${fmtShort(from)}${m.getFullYear()} – ${fmtShort(addDays(to, -1))}${m.getFullYear()}`, R, y, { s: 9.5, c: MUTED, a: 'right' }); y += 9;
+    // Kennzahlen
+    const tiles = [['Ist', h(s.total) + ' h', INK], [future ? 'Soll bis heute' : 'Soll', h(soll) + ' h', INK], ['Saldo', sg(diff) + ' h', diff >= 0 ? GREEN : RED]];
+    const tw = (W - 8) / 3;
+    tiles.forEach(([k, v, c], i) => {
+      const x = L + i * (tw + 4);
+      doc.setFillColor(...SOFT); doc.roundedRect(x, y, tw, 22, 2.5, 2.5, 'F');
+      txt(k.toUpperCase(), x + 5, y + 7, { s: 8, b: true, c: MUTED }); txt(v, x + 5, y + 17, { s: 17, b: true, c });
+    });
+    y += 30;
+    // Wochen-Diagramm
+    y = section('Arbeitszeit pro Woche', y);
+    const weeks = [];
+    for (let w = startOfWeek(from); w < to; w = addDays(w, 7)) {
+      const a = Math.max(w, from), b = Math.min(addDays(w, 7), to);
+      weeks.push({ kw: isoWeek(w).week, a, b, hol: isHoliday(w), ...sumRange(a, b), soll: sollRange(a, b), tz: tzSum(a, b) });
+    }
+    const CH = 48, top = y + 4, base = top + CH;
+    const maxV = Math.max(10 * 3600000, ...weeks.map(w => Math.max(w.total, w.soll))) * 1.12;
+    const stepH = (maxV / 3600000) > 40 ? 10 : 5;
+    doc.setLineWidth(.15);
+    for (let v = 0; v * 3600000 <= maxV; v += stepH) {
+      const yy = base - v * 3600000 / maxV * CH;
+      doc.setDrawColor(...LINE); doc.line(L + 10, yy, R, yy); txt(v + ' h', L + 8, yy + 1, { s: 7, c: MUTED, a: 'right' });
+    }
+    const slot = (W - 12) / weeks.length, bw = Math.min(22, slot * .55);
+    weeks.forEach((w, i) => {
+      const cx = L + 12 + slot * i + slot / 2, x = cx - bw / 2;
+      if (w.hol) { doc.setFillColor(...SOFT); doc.rect(cx - slot / 2 + 1, top - 2, slot - 2, CH + 2, 'F'); }
+      let yy = base;
+      for (const c of CATS) { const v = w.byCat[c.id]; if (!v) continue; const hh = v / maxV * CH; doc.setFillColor(...pdfColor(c)); doc.rect(x, yy - hh, bw, hh, 'F'); yy -= hh; }
+      if (w.total) txt(h(w.total), cx, yy - 1.8, { s: 8, b: true, a: 'center' });
+      if (w.soll) { const sy = base - w.soll / maxV * CH; doc.setDrawColor(...INK); doc.setLineWidth(.5); doc.setLineDashPattern([1.2, 1], 0); doc.line(x - 2.5, sy, x + bw + 2.5, sy); doc.setLineDashPattern([], 0); }
+      txt(`KW ${w.kw}`, cx, base + 4.5, { s: 8.5, b: true, a: 'center' });
+      txt(w.hol ? 'Ferien' : `${fmtShort(w.a)}–${fmtShort(addDays(w.b, -1))}`, cx, base + 8.5, { s: 7, c: MUTED, a: 'center' });
+      if (hasCore && w.total) txt(`${h(w.total - w.tz.core)} h außerhalb`, cx, base + 12.5, { s: 7, c: CORE, a: 'center' });
+    });
+    doc.setDrawColor(...MUTED); doc.setLineWidth(.3); doc.line(L + 10, base, R, base);
+    y = base + (hasCore ? 18 : 14);
+    doc.setDrawColor(...INK); doc.setLineWidth(.5); doc.setLineDashPattern([1.2, 1], 0); doc.line(L, y - 1, L + 7, y - 1); doc.setLineDashPattern([], 0);
+    txt('Soll der Woche', L + 9, y, { s: 8, c: MUTED });
+    doc.setFillColor(...SOFT); doc.rect(L + 40, y - 3, 6, 4, 'F'); txt('Ferienwoche (kein Soll)', L + 48, y, { s: 8, c: MUTED });
+    y += 10;
+    // Tätigkeiten
+    const used = CATS.filter(c => s.byCat[c.id]).sort((a, b) => s.byCat[b.id] - s.byCat[a.id]);
+    if (used.length) {
+      y = section('Nach Tätigkeit', y);
+      const maxC = s.byCat[used[0].id], nameW = 52, barW = W - nameW - 32;
+      // höchstens 7 Zeilen, Rest als „Weitere“
+      const rows = used.slice(0, used.length > 7 ? 6 : 7).map(c => ({ name: plain(c.raw || c.name), v: s.byCat[c.id], col: pdfColor(c) }));
+      if (used.length > 7) rows.push({ name: `Weitere (${used.length - 6})`, v: used.slice(6).reduce((a, c) => a + s.byCat[c.id], 0), col: [160, 160, 160] });
+      for (const r of rows) {
+        const v = r.v;
+        txt(r.name, L, y + 3.3, { s: 9 });
+        doc.setFillColor(...SOFT); doc.roundedRect(L + nameW, y, barW, 4.6, 1, 1, 'F');
+        doc.setFillColor(...r.col); doc.roundedRect(L + nameW, y, Math.max(1.5, Math.min(1, v / maxC) * barW), 4.6, 1, 1, 'F');
+        txt(h(v) + ' h', R - 10, y + 3.4, { s: 9, b: true, a: 'right' }); txt(Math.round(v / s.total * 100) + ' %', R, y + 3.4, { s: 8, c: MUTED, a: 'right' });
+        y += 6.2;
+      }
+      y += 5;
+    }
+    // Schule/Zuhause und Kernarbeitszeit nebeneinander
+    if (s.total) {
+      const half = hasCore ? (W - 10) / 2 : W;
+      const split = (x, ww, title, f, c1, c2, l1, l2) => {
+        txt(title, x, y, { b: true, s: 11.5, c: GREEN });
+        doc.setFillColor(...c2); doc.roundedRect(x, y + 4, ww, 7, 1.5, 1.5, 'F');
+        if (f > 0) { doc.setFillColor(...c1); doc.roundedRect(x, y + 4, ww * f, 7, 1.5, 1.5, 'F'); if (f < 1) doc.rect(x + ww * f - 2, y + 4, 2, 7, 'F'); }
+        txt(l1, x, y + 16, { s: 8.5 }); txt(l2, x + ww, y + 16, { s: 8.5, a: 'right' });
+      };
+      const fs = s.byPlace.schule / s.total;
+      split(L, half, 'Schule und Zuhause', fs, GREEN, [160, 196, 184], `Schule ${h(s.byPlace.schule)} h · ${Math.round(fs * 100)} %`, `Zuhause ${h(s.byPlace.zuhause)} h · ${Math.round((1 - fs) * 100)} %`);
+      if (hasCore) {
+        const fc = tz.core / s.total;
+        split(L + half + 10, half, 'Kernarbeitszeit', fc, [200, 200, 196], [80, 80, 80], `In Kernzeit ${h(tz.core)} h · ${Math.round(fc * 100)} %`, `Außerhalb ${h(s.total - tz.core)} h · ${Math.round((1 - fc) * 100)} %`);
+      }
+      y += 24;
+    }
+    // Nach Tageszeit
+    if (s.total) {
+      y = section('Nach Tageszeit', y);
+      const cw = (W - 12) / 4, maxT = Math.max(...Object.values(tz.by), 1);
+      TZ.forEach((z, i) => {
+        const x = L + i * (cw + 4), v = tz.by[z.id];
+        txt(z.name, x, y + 3.3, { s: 9, b: true }); txt(`${h(v)} h · ${Math.round(v / s.total * 100)} %`, x + cw, y + 3.3, { s: 8.5, c: MUTED, a: 'right' });
+        doc.setFillColor(...SOFT); doc.roundedRect(x, y + 5.5, cw, 4.6, 1, 1, 'F');
+        if (v) { doc.setFillColor(...TZ_PDF[i]); doc.roundedRect(x, y + 5.5, Math.max(1.5, v / maxT * cw), 4.6, 1, 1, 'F'); }
+      });
+      txt('Vormittag 6–12 Uhr · Nachmittag 12–17 · Abend 17–22 · Nacht 22–6', L, y + 15, { s: 7.5, c: MUTED });
+      y += 20;
+    }
+    // Fuß
+    if (hasCore) { const dn = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']; const kz = [1, 2, 3, 4, 5, 6, 0].filter(d => (state.coreHours[d] || []).length).map(d => `${dn[d]} ${state.coreHours[d].map(([a, b]) => `${hm(a)}–${hm(b)}`).join(', ')}`).join(' · ');
+      txt(`Deine Kernarbeitszeit: ${kz}`, L, 263, { s: 7.5, c: MUTED }); }
+    txt(`Soll: ${fmtNum(st.yearly)} h im Jahr${st.pct !== 100 ? ` bei ${fmtNum(st.pct)} %` : ''}, verteilt auf ${fmtNum(st.weeks)} Unterrichtswochen (${fmtNum(weeklySoll() / 3600000)} h pro Woche). Ferienwochen und freie Tage haben kein Soll.`, L, 267, { s: 7.5, c: MUTED });
+    doc.setDrawColor(...MUTED); doc.setLineWidth(.25); doc.line(L, 281, L + 70, 281); doc.line(R - 70, 281, R, 281);
+    txt('Ort, Datum', L, 285, { s: 8, c: MUTED }); txt('Unterschrift', R - 70, 285, { s: 8, c: MUTED });
+    txt(`Erstellt mit Lehrerzeit am ${fmtShort(Date.now())}${new Date().getFullYear()}`, R, 291, { s: 7, c: MUTED, a: 'right' });
+    await saveFile(`Arbeitszeitnachweis_${m.getFullYear()}-${pad(m.getMonth() + 1)}.pdf`, doc.output('blob'), 'Monatsnachweis gespeichert');
   }
 
   // ---------- Excel ----------
@@ -1374,6 +1515,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   // ---------- Abgleich zwischen Geräten (nur in claude.ai, private Daten des angemeldeten Nutzers) ----------
   // Ablage: data/users/<id>/meta (Einstellungen, Ferien, laufender Timer) und data/users/<id>/m-JJJJ-MM (Einträge des Monats).
   // Gelöschte Einträge bleiben als {deleted:true} stehen, damit andere Geräte sie ebenfalls entfernen.
+  if (state.paused) { delete state.paused; }
   const META_KEYS = ['settings', 'offDays', 'holidayWeeks', 'presets', 'running', 'lastCat', 'lastPlace', 'timetable', 'customCats', 'coreHours'];
   const metaOf = () => { const m = {}; for (const k of META_KEYS) m[k] = state[k] === undefined ? null : state[k]; return m; };
   const canon = v => v === null || typeof v !== 'object' ? JSON.stringify(v) : Array.isArray(v) ? '[' + v.map(canon).join(',') + ']' : '{' + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
