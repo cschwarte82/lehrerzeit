@@ -12,6 +12,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Arbeitsschutz-Hinweise (Orientierung an Arbeitszeitgesetz und EU-Arbeitszeitrichtlinie): mehr als 10 Stunden am Tag, fehlende Pausen, zu kurze Ruhezeit, mehr als 48 Stunden im Schnitt
 - Jahressoll (Standard 1805 h auf 40 Unterrichtswochen), Ferienwochen ohne Soll (Arbeit in den Ferien zählt als Plus) und freie Tage
 - Export als Excel-Datei, auch mit Stunden je Tagesabschnitt und Kernarbeitszeit
+- Monatsnachweis als PDF (Auswertung → Monat): eine Seite mit Ist, Soll, Saldo, Wochen, Tätigkeiten und Tageszeiten, z. B. zum Ausdrucken; den Namen dafür unter Einstellungen eintragen
 - Fragt nach, wenn der Timer über 10 Stunden oder seit gestern läuft, und lässt das Ende direkt korrigieren
 - Die drei meistgenutzten Tätigkeiten stehen oben, der Ort wird direkt neben „Start“ gewählt (werktags ist „Schule“ vorausgewählt, am Wochenende und in den Ferien „Zuhause“)
 - Zeigt nach einem Update einmal kurz, was neu ist
