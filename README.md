@@ -15,6 +15,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Monatsnachweis als PDF (Auswertung → Monat): eine Seite mit Ist, Soll, Saldo, Wochen, Tätigkeiten und Tageszeiten, z. B. zum Ausdrucken; den Namen dafür unter Einstellungen eintragen
 - Fragt nach, wenn der Timer über 10 Stunden oder seit gestern läuft, und lässt das Ende direkt korrigieren
 - Die drei meistgenutzten Tätigkeiten stehen oben, der Ort wird direkt neben „Start“ gewählt (werktags ist „Schule“ vorausgewählt, am Wochenende und in den Ferien „Zuhause“)
+- Zu spät gestartet? In den ersten 45 Minuten verlegen „1 / 3 / 5 Min.“ unter der Uhr die Startzeit vor; oder „Läuft seit …“ antippen und die Startzeit direkt eingeben
 - Zeigt nach einem Update einmal kurz, was neu ist
 - Optional: Stundenplan hinterlegen und beim Nachtragen eines Tages die Unterrichtsblöcke mit einem Tipp einfügen (danach änderbar)
 - Beim Nachtragen fragt die App, wie Lücken zwischen Einträgen gefüllt werden sollen (eine Tätigkeit antippen oder „Nicht füllen“)
