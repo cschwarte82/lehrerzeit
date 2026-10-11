@@ -175,6 +175,11 @@ input[type=text], input[type=date], input[type=time], select { width: 100%; min-
 .weeks td, .weeks th { white-space: nowrap; padding: 8px 4px; border-bottom: 1px solid var(--line); text-align: left; }
 .weeks td:last-child, .weeks th:last-child { text-align: right; }
 .weeks .range { display: block; font-size: .8rem; color: var(--muted); }
+.notechips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.notechips button { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 999px; padding: 5px 11px; font: inherit; font-size: .85rem; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.weeks tr.go { cursor: pointer; }
+.weeks tr.go:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.weeks tr.go .golink { color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .weeks th { font-size: .78rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
 
 .empty { text-align: center; padding: 28px 12px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
@@ -273,6 +278,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   const PLACES = { schule: 'Schule', zuhause: 'Zuhause' };
   const KEY = 'lehrerzeit.v1';
   const inClaude = !!(window.claude && typeof window.claude.use === 'function');
+  const GUIDE_URL = 'https://cschwarte82.github.io/lehrerzeit/Lehrerzeit-Anleitung.pdf';
   // Frühere Kategorie „Nachbereitung“ ist in „Vor-/Nachbereitung“ aufgegangen
   const CAT_ALIAS = { nachbereitung: 'vorbereitung' };
   // Eigene Tätigkeiten (höchstens MAX_OWN) stehen vor „Sonstiges“; gelöschte bleiben für alte Einträge erhalten (deleted: true)
@@ -446,6 +452,13 @@ input::-webkit-date-and-time-value { text-align: left; }
     { v: 15, items: [
       'Zu spät gestartet? In den ersten 45 Minuten kannst du unter der Uhr mit „1 / 3 / 5 Min.“ die Startzeit vorverlegen, auch mehrfach. Oder tippe auf „Läuft seit …“ und gib die Startzeit direkt ein.',
     ] },
+    { v: 16, items: [
+      'Anleitung: Unter Einstellungen öffnet „Anleitung öffnen“ immer die neueste Fassung der Anleitung als PDF.',
+      'Auswertung: Im Schuljahr einen Monat antippen öffnet diesen Monat, im Monat eine Woche antippen öffnet diese Woche.',
+    ] },
+    { v: 17, items: [
+      'Notizen: Unter dem Notizfeld stehen deine zuletzt benutzten Notizen zum Antippen, passende zur gewählten Tätigkeit zuerst.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -555,6 +568,17 @@ input::-webkit-date-and-time-value { text-align: left; }
     r.start = ns; if (!r.shiftedFrom) r.shiftedFrom = Date.now(); save(); render();
     if (!quiet) toast(t < floor ? `Start auf ${fmtTime(ns)} gesetzt (Ende des letzten Eintrags)` : `Start jetzt ${fmtTime(ns)}`);
   }
+  // Zuletzt benutzte Notizen als Vorschläge, passende Tätigkeit zuerst
+  function recentNotes(cat, n = 6) {
+    const seen = new Set(), same = [], other = [];
+    for (const e of [...state.entries].sort((a, b) => b.end - a.end)) {
+      const t = (e.note || '').trim(), k = t.toLowerCase(); if (!t || seen.has(k)) continue;
+      seen.add(k); (e.cat === cat ? same : other).push(t);
+      if (same.length >= n) break;
+    }
+    return [...same, ...other].slice(0, n);
+  }
+  const noteChipsHTML = (cat, attr) => { const l = recentNotes(cat); return l.length ? `<div class="notechips" aria-label="Zuletzt benutzt">${l.map(t => `<button type="button" ${attr}="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''; };
   function switchTo(cat) {
     // nächste Tätigkeit beginnt am gerundeten Ende, so geht keine Sekunde verloren
     const end = stopTimer(true); sel.cat = cat; startTimer(end); toast(`Gewechselt zu ${catById(cat).name}`);
@@ -608,7 +632,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         <div class="clock">00:00:00</div>
         <span class="label">Tätigkeit</span>
         ${chipsHTML(sel.cat, 'data-cat')}
-        <div class="field"><label class="label" for="noteIn">Notiz ${sel.cat === 'sonstiges' ? '(bitte ausfüllen)' : '(optional)'}</label><input type="text" id="noteIn" placeholder="${sel.cat === 'sonstiges' ? 'Worum geht es?' : 'z. B. 9b Mathe, Klausur Q1'}" value="${esc(sel.note)}"></div>
+        <div class="field"><label class="label" for="noteIn">Notiz ${sel.cat === 'sonstiges' ? '(bitte ausfüllen)' : '(optional)'}</label><input type="text" id="noteIn" placeholder="${sel.cat === 'sonstiges' ? 'Worum geht es?' : 'z. B. 9b Mathe, Klausur Q1'}" value="${esc(sel.note)}">${noteChipsHTML(sel.cat, 'data-note')}</div>
         ${noteWarn ? `<p class="warn" id="noteWarn">Bei „Sonstiges“ bitte kurz notieren, worum es geht. Tippe nochmal auf Start, um ohne Notiz zu beginnen.</p>` : ''}
         <div class="startbar">${placeHTML(sel.place, 'data-place')}<button class="btn big primary" id="startBtn">Start</button></div>`;
     }
@@ -633,6 +657,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     $view.querySelectorAll('[data-place]').forEach(b => b.onclick = () => { sel.place = b.dataset.place; render(); });
     $view.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => { if (b.dataset.switch !== r.cat) switchTo(b.dataset.switch); });
     const note = document.getElementById('noteIn'); if (note) note.oninput = () => sel.note = note.value;
+    $view.querySelectorAll('[data-note]').forEach(b => b.onclick = () => { sel.note = b.dataset.note; noteWarn = false; render(); });
     const sb = document.getElementById('startBtn'); if (sb) sb.onclick = () => startTimer();
     const st = document.getElementById('stopBtn'); if (st) st.onclick = () => stopTimer(false);
     $view.querySelectorAll('[data-earlier]').forEach(b => b.onclick = () => setStart(state.running.start - b.dataset.earlier * 60000));
@@ -898,7 +923,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         ${sollHTML(s.total, from, to)}
         <div class="split"><span>Schule <b>${fmtDur(s.byPlace.schule)} h</b></span><span>Zuhause <b>${fmtDur(s.byPlace.zuhause)} h</b></span></div>
         <div style="overflow-x:auto"><table class="weeks"><thead><tr><th>Woche</th><th>Ist</th><th>Soll</th><th>Saldo</th></tr></thead><tbody>
-        ${rows.map(r => `<tr><td>KW ${r.kw}<span class="range">${fmtShort(r.a)}–${fmtShort(addDays(r.b, -1))}${r.hol ? ' · Ferien' : ''}</span></td><td class="num">${fmtDur(r.total)}</td><td class="num">${fmtDur(r.soll)}</td><td class="num saldo ${r.total - r.soll >= 0 ? 'plus' : 'minus'}">${r.soll || r.total ? fmtSigned(r.total - r.soll) : ''}</td></tr>`).join('')}
+        ${rows.map(r => `<tr class="go" data-goweek="${startOfWeek(r.a)}" tabindex="0" aria-label="KW ${r.kw} öffnen"><td><span class="golink">KW ${r.kw}</span><span class="range">${fmtShort(r.a)}–${fmtShort(addDays(r.b, -1))}${r.hol ? ' · Ferien' : ''}</span></td><td class="num">${fmtDur(r.total)}</td><td class="num">${fmtDur(r.soll)}</td><td class="num saldo ${r.total - r.soll >= 0 ? 'plus' : 'minus'}">${r.soll || r.total ? fmtSigned(r.total - r.soll) : ''}</td></tr>`).join('')}
         </tbody></table></div>
       </section>`;
       html += tzHTML(from, to);
@@ -937,7 +962,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         ${sollHTML(s.total, from, to)}
         <div class="split"><span>Unterrichtswochen bisher <b>${teachSoFar} von ${fmtNum(st.weeks)}</b></span><span>Arbeit in Ferienwochen <b>${fmtDur(holWork)} h</b></span></div>
         <div style="overflow-x:auto"><table class="weeks"><thead><tr><th>Monat</th><th>Ist</th><th>Soll</th><th>Saldo</th></tr></thead><tbody>
-        ${months.map(r => `<tr><td>${r.name}</td><td class="num">${fmtDur(r.total)}</td><td class="num">${fmtDur(r.soll)}</td><td class="num saldo ${r.total - r.soll >= 0 ? 'plus' : 'minus'}">${r.soll || r.total ? fmtSigned(r.total - r.soll) : ''}</td></tr>`).join('')}
+        ${months.map(r => `<tr class="go" data-gomonth="${r.a}" tabindex="0" aria-label="${r.name} öffnen"><td><span class="golink">${r.name}</span></td><td class="num">${fmtDur(r.total)}</td><td class="num">${fmtDur(r.soll)}</td><td class="num saldo ${r.total - r.soll >= 0 ? 'plus' : 'minus'}">${r.soll || r.total ? fmtSigned(r.total - r.soll) : ''}</td></tr>`).join('')}
         </tbody></table></div>
       </section>
       <section class="panel">
@@ -968,6 +993,10 @@ input::-webkit-date-and-time-value { text-align: left; }
       render();
     });
     $view.querySelectorAll('[data-off]').forEach(b => b.onclick = () => openOffDay(b.dataset.off));
+    // Schuljahr → Monat, Monat → Woche
+    const drill = (el, fn) => { el.onclick = fn; el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } }; };
+    $view.querySelectorAll('[data-gomonth]').forEach(el => drill(el, () => { monthAnchor = +el.dataset.gomonth; period = 'monat'; render(); window.scrollTo(0, 0); }));
+    $view.querySelectorAll('[data-goweek]').forEach(el => drill(el, () => { weekAnchor = +el.dataset.goweek; period = 'woche'; render(); window.scrollTo(0, 0); }));
     $view.querySelectorAll('[data-day]').forEach(b => b.onclick = () => openDay(+b.dataset.day));
     if (period === 'tag') {
       $view.querySelectorAll('[data-entry]').forEach(b => b.onclick = () => openEditor(state.entries.find(e => e.id === b.dataset.entry)));
@@ -1016,6 +1045,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     const [ym, yd] = st.yearStart.split('-');
     $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="stTitle">
       <h2 id="stTitle">Einstellungen</h2>
+      <div class="row" style="align-items:center"><a class="btn" id="guideLink" href="${GUIDE_URL}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;display:inline-flex;align-items:center">Anleitung öffnen</a><span class="hint" style="flex:1 1 160px">Immer die neueste Fassung als PDF (Internet nötig).</span></div>
       <div class="row">
         <div class="field"><label class="label" for="stYearly">Jahressoll (Stunden)</label>
           <input type="text" inputmode="decimal" id="stYearly" value="${fmtNum(st.yearly)}"></div>
@@ -1406,7 +1436,7 @@ input::-webkit-date-and-time-value { text-align: left; }
           <div class="field" style="flex-basis:100px"><label class="label" for="edTo">Bis</label><input type="time" id="edTo" value="${fmtTime(e.end)}"></div>
         </div>
         ${isNew && ttDay().length ? `<div class="ttbox"><button class="btn" id="edTT">Unterricht laut Stundenplan einfügen</button><span class="hint">${ttText(ttDay())} · ${PLACES.schule}</span></div>` : ''}
-        <div class="field"><label class="label" for="edNote">Notiz</label><input type="text" id="edNote" value="${esc(e.note)}"></div>
+        <div class="field"><label class="label" for="edNote">Notiz</label><input type="text" id="edNote" value="${esc(e.note)}">${noteChipsHTML(cat, 'data-enote')}</div>
         ${err ? `<p class="warn">${err}</p>` : ''}
         ${confirmDel ? `<p class="warn">Diesen Eintrag wirklich löschen? Das lässt sich nicht rückgängig machen.</p>` : ''}
         <div class="actions">
@@ -1415,6 +1445,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         </div></div></div>`;
       const keep = () => { e.note = document.getElementById('edNote').value; const d = document.getElementById('edDate').value, f = document.getElementById('edFrom').value, t = document.getElementById('edTo').value; e._d = d; e._f = f; e._t = t; };
       $modal.querySelectorAll('[data-ecat]').forEach(b => b.onclick = () => { keep(); cat = b.dataset.ecat; redraw(); });
+      $modal.querySelectorAll('[data-enote]').forEach(b => b.onclick = () => { document.getElementById('edNote').value = b.dataset.enote; });
       $modal.querySelectorAll('[data-eplace]').forEach(b => b.onclick = () => { keep(); place = b.dataset.eplace; placeSet = true; redraw(); });
       document.getElementById('edCancel').onclick = close;
       document.getElementById('ov').onclick = ev => { if (ev.target.id === 'ov') close(); };
