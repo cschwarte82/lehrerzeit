@@ -18,6 +18,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Zu spät gestartet? In den ersten 45 Minuten verlegen „1 / 3 / 5 Min.“ unter der Uhr die Startzeit vor; oder „Läuft seit …“ antippen und die Startzeit direkt eingeben
 - Zuletzt benutzte Notizen erscheinen unter dem Notizfeld zum Antippen
 - In der Auswertung führt ein Tipp auf einen Monat (Schuljahr) oder eine Woche (Monat) direkt in diese Ansicht
+- Nach dem Blättern mit den Pfeilen bringt „Zu heute“ bzw. „Zur aktuellen Woche/zum aktuellen Monat“ direkt zurück
 - Die aktuelle Anleitung ist jederzeit unter Einstellungen → „Anleitung öffnen“ erreichbar
 - Zeigt nach einem Update einmal kurz, was neu ist
 - Optional: Stundenplan hinterlegen und beim Nachtragen eines Tages die Unterrichtsblöcke mit einem Tipp einfügen (danach änderbar)

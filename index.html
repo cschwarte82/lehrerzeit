@@ -137,6 +137,7 @@ input[type=text], input[type=date], input[type=time], select { width: 100%; min-
 .periodnav .title { text-align: center; flex: 1; }
 .periodnav .title strong { font-family: var(--font-display); font-size: 1.15rem; font-weight: 500; display: block; }
 .periodnav .title span { color: var(--muted); font-size: .9rem; }
+.periodnav .nowbtn { display: block; margin: 4px auto 0; min-height: 32px; padding: 4px 10px; font-size: .88rem; }
 .total { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .total .num { font-size: 2.2rem; }
 .split { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: .95rem; }
@@ -459,6 +460,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     { v: 17, items: [
       'Notizen: Unter dem Notizfeld stehen deine zuletzt benutzten Notizen zum Antippen, passende zur gewählten Tätigkeit zuerst.',
     ] },
+    { v: 18, items: [
+      'Auswertung: Wenn du mit den Pfeilen geblättert hast, bringt dich „Zu heute“, „Zur aktuellen Woche“ bzw. „Zum aktuellen Monat“ direkt zurück.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -520,6 +524,8 @@ input::-webkit-date-and-time-value { text-align: left; }
   let monthAnchor = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); })();
   let period = 'woche';
   let dayAnchor = startOfDay(Date.now());
+  // „Zurück zu heute“ nur zeigen, wenn man woanders hin geblättert hat
+  const nowBtn = (cur, label) => cur ? '' : `<button class="btn ghost nowbtn" data-now>${label}</button>`;
   let yearAnchor = Date.now();
   // Ort vorbelegen: Mo–Fr Schule, Sa/So und Ferienwochen Zuhause (von Hand umschaltbar); gesetzt beim ersten render()
   const placeFor = t => [0, 6].includes(new Date(t).getDay()) || isHoliday(t) ? 'zuhause' : 'schule';
@@ -866,7 +872,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       const gaps = dayGaps(from);
       html += `<section class="panel">
         <div class="periodnav"><button class="btn" data-nav="-1" aria-label="Voriger Tag">‹</button>
-          <div class="title"><strong>${fmtDay(from)}</strong><span>${from === today ? 'Heute' : `KW ${isoWeek(from).week}`}${isHoliday(from) ? ' · Ferienwoche' : ''}${isOff(from) ? ` · ${OFF_REASONS[offReason(from)]}` : ''}</span></div>
+          <div class="title"><strong>${fmtDay(from)}</strong><span>${from === today ? 'Heute' : `KW ${isoWeek(from).week}`}${isHoliday(from) ? ' · Ferienwoche' : ''}${isOff(from) ? ` · ${OFF_REASONS[offReason(from)]}` : ''}</span>${nowBtn(from === today, 'Zu heute')}</div>
           <button class="btn" data-nav="1" aria-label="Nächster Tag">›</button></div>
         ${sollHTML(s.total, from, to)}
         <div class="split"><span>Schule <b>${fmtDur(s.byPlace.schule)} h</b></span><span>Zuhause <b>${fmtDur(s.byPlace.zuhause)} h</b></span></div>
@@ -888,7 +894,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       const days = [0, 1, 2, 3, 4].map(i => addDays(from, i));
       html += `<section class="panel">
         <div class="periodnav"><button class="btn" data-nav="-1" aria-label="Vorige Woche">‹</button>
-          <div class="title"><strong>KW ${week} · ${year}</strong><span>${fmtShort(from)} – ${fmtShort(addDays(to, -1))}${hol ? ' · Ferienwoche' : ''}</span></div>
+          <div class="title"><strong>KW ${week} · ${year}</strong><span>${fmtShort(from)} – ${fmtShort(addDays(to, -1))}${hol ? ' · Ferienwoche' : ''}</span>${nowBtn(from === startOfWeek(Date.now()), 'Zur aktuellen Woche')}</div>
           <button class="btn" data-nav="1" aria-label="Nächste Woche">›</button></div>
         ${sollHTML(s.total, from, to)}
         <div class="split"><span>Schule <b>${fmtDur(s.byPlace.schule)} h</b></span><span>Zuhause <b>${fmtDur(s.byPlace.zuhause)} h</b></span></div>
@@ -918,7 +924,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       }
       html += `<section class="panel">
         <div class="periodnav"><button class="btn" data-nav="-1" aria-label="Voriger Monat">‹</button>
-          <div class="title"><strong>${MONTHS[m.getMonth()]} ${m.getFullYear()}</strong><span>${rows.length} Kalenderwochen</span></div>
+          <div class="title"><strong>${MONTHS[m.getMonth()]} ${m.getFullYear()}</strong><span>${rows.length} Kalenderwochen</span>${nowBtn(m.getFullYear() === new Date().getFullYear() && m.getMonth() === new Date().getMonth(), 'Zum aktuellen Monat')}</div>
           <button class="btn" data-nav="1" aria-label="Nächster Monat">›</button></div>
         ${sollHTML(s.total, from, to)}
         <div class="split"><span>Schule <b>${fmtDur(s.byPlace.schule)} h</b></span><span>Zuhause <b>${fmtDur(s.byPlace.zuhause)} h</b></span></div>
@@ -952,7 +958,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       }
       html += `<section class="panel">
         <div class="periodnav"><button class="btn" data-nav="-1" aria-label="Voriges Schuljahr">‹</button>
-          <div class="title"><strong>Schuljahr ${schoolYearLabel(from)}</strong><span>${fmtShort(from)}${new Date(from).getFullYear()} – ${fmtShort(addDays(to, -1))}${new Date(addDays(to, -1)).getFullYear()}</span></div>
+          <div class="title"><strong>Schuljahr ${schoolYearLabel(from)}</strong><span>${fmtShort(from)}${new Date(from).getFullYear()} – ${fmtShort(addDays(to, -1))}${new Date(addDays(to, -1)).getFullYear()}</span>${nowBtn(from === schoolYearStart(Date.now()), 'Zum aktuellen Schuljahr')}</div>
           <button class="btn" data-nav="1" aria-label="Nächstes Schuljahr">›</button></div>
         <div class="konto">
           <div class="total"><span class="num">${fmtDur(s.total)}</span><span class="hint">von ${fmtNum(yearSoll / 3600000)} h Jahressoll</span></div>
@@ -993,6 +999,14 @@ input::-webkit-date-and-time-value { text-align: left; }
       render();
     });
     $view.querySelectorAll('[data-off]').forEach(b => b.onclick = () => openOffDay(b.dataset.off));
+    $view.querySelectorAll('[data-now]').forEach(b => b.onclick = () => {
+      const d = new Date();
+      if (period === 'tag') dayAnchor = startOfDay(Date.now());
+      else if (period === 'woche') weekAnchor = startOfWeek(Date.now());
+      else if (period === 'monat') monthAnchor = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+      else yearAnchor = Date.now();
+      render();
+    });
     // Schuljahr → Monat, Monat → Woche
     const drill = (el, fn) => { el.onclick = fn; el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } }; };
     $view.querySelectorAll('[data-gomonth]').forEach(el => drill(el, () => { monthAnchor = +el.dataset.gomonth; period = 'monat'; render(); window.scrollTo(0, 0); }));
