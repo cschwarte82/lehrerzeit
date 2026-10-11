@@ -84,6 +84,11 @@ h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; mar
 .startedit { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); flex: none; }
 .timer.running .dot { background: var(--chalk); box-shadow: 0 0 0 4px color-mix(in srgb, var(--chalk) 30%, transparent); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes slideL { from { transform: translateX(28px); opacity: .4; } }
+@keyframes slideR { from { transform: translateX(-28px); opacity: .4; } }
+#view.slideL { animation: slideL .18s ease-out; }
+#view.slideR { animation: slideR .18s ease-out; }
+@media (prefers-reduced-motion: reduce) { #view.slideL, #view.slideR { animation: none; } }
 @keyframes pulse { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--chalk) 10%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .timer.running .dot { animation: none; } }
 
@@ -462,6 +467,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     ] },
     { v: 18, items: [
       'Auswertung: Wenn du mit den Pfeilen geblättert hast, bringt dich „Zu heute“, „Zur aktuellen Woche“ bzw. „Zum aktuellen Monat“ direkt zurück.',
+    ] },
+    { v: 19, items: [
+      'Wischen: Mit einem Wisch nach links oder rechts wechselst du zwischen Erfassen, Einträge und Auswertung.',
     ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
@@ -1586,6 +1594,37 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
   document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => setView(b.dataset.view));
   document.getElementById('openSettings').onclick = openSettings;
+  // Wischen zwischen den Reitern (nicht in Dialogen, Eingabefeldern oder seitlich scrollbaren Tabellen)
+  const VIEWS = ['erfassen', 'eintraege', 'auswertung'];
+  let swipe = null;
+  const blocksSwipe = el => {
+    for (; el && el !== document.body; el = el.parentElement) {
+      if (el.matches('input, textarea, select, [contenteditable]')) return true;
+      if (el.scrollWidth > el.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(el).overflowX)) return true;
+    }
+    return false;
+  };
+  document.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    swipe = e.touches.length === 1 && !document.getElementById('modalRoot').children.length
+      && t.clientX > 24 && t.clientX < innerWidth - 24 && !blocksSwipe(e.target)
+      ? { x: t.clientX, y: t.clientY, t: Date.now() } : null;
+  }, { passive: true });
+  const swipeTo = dx => {
+    swipe = null;
+    const i = VIEWS.indexOf(view) + (dx < 0 ? 1 : -1);
+    if (i < 0 || i >= VIEWS.length) return;
+    setView(VIEWS[i]);
+    const v = document.getElementById('view');
+    v.classList.remove('slideL', 'slideR'); void v.offsetWidth; v.classList.add(dx < 0 ? 'slideL' : 'slideR');
+  };
+  document.addEventListener('touchend', e => {
+    if (!swipe) return;
+    const t = e.changedTouches[0], dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
+    if (Math.abs(dx) >= 40 && Math.abs(dx) > 2 * Math.abs(dy) && Date.now() - swipe.t < 700) swipeTo(dx);
+    swipe = null;
+  }, { passive: true });
+  document.addEventListener('touchcancel', () => { swipe = null; }, { passive: true });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 
   // ---------- Abgleich zwischen Geräten (nur in claude.ai, private Daten des angemeldeten Nutzers) ----------
