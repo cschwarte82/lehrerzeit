@@ -77,6 +77,11 @@ h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; mar
 .clock { font-family: var(--font-num); font-size: clamp(2.6rem, 12vw, 3.6rem); line-height: 1; letter-spacing: -0.02em; }
 .timer.running .clock { color: var(--ink); }
 .timer .state { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.timer .state .since { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.earlier { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; color: var(--muted); font-size: .9rem; }
+.earlier span { grid-column: 1 / -1; }
+.earlier .btn { padding: 6px 4px; min-height: 36px; }
+.startedit { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); flex: none; }
 .timer.running .dot { background: var(--chalk); box-shadow: 0 0 0 4px color-mix(in srgb, var(--chalk) 30%, transparent); animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--chalk) 10%, transparent); } }
@@ -438,6 +443,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     { v: 14, items: [
       'Monatsnachweis als PDF: Unter Auswertung → Monat erstellst du eine Seite mit Ist, Soll, Saldo, den Wochen, Tätigkeiten und Tageszeiten. Deinen Namen dafür kannst du unter Einstellungen eintragen.',
     ] },
+    { v: 15, items: [
+      'Zu spät gestartet? In den ersten 45 Minuten kannst du unter der Uhr mit „1 / 3 / 5 Min.“ die Startzeit vorverlegen, auch mehrfach. Oder tippe auf „Läuft seit …“ und gib die Startzeit direkt ein.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -533,8 +541,19 @@ input::-webkit-date-and-time-value { text-align: left; }
     const end = r.start + Math.max(0, Math.round((Date.now() - r.start) / 60000)) * 60000;
     if (end - r.start >= 60000) { state.entries.push({ id: uid(), cat: r.cat, place: r.place, note: r.note, start: r.start, end }); if (!silent) toast(`Gespeichert: ${catById(r.cat).name}, ${fmtDur(end - r.start)} h`); }
     else if (!silent) toast('Unter einer Minute, nicht gespeichert');
-    state.running = null; sel.note = ''; save(); render();
+    state.running = null; sel.note = ''; editStart = false; save(); render();
     return end;
+  }
+  // Start des laufenden Timers vorverlegen, aber nie vor das Ende des vorherigen Eintrags
+  const EARLIER_WINDOW = 45 * 60000;
+  let editStart = false;
+  const startFloor = r => Math.max(r.start - 16 * 3600000, ...state.entries.filter(x => x.end <= r.start + 1000).map(x => x.end));
+  function setStart(t, quiet) {
+    const r = state.running; if (!r) return;
+    const floor = startFloor(r), ns = Math.max(floor, Math.min(t, Date.now()));
+    if (ns === r.start) { if (!quiet) toast('Früher geht nicht: Davor endet dein letzter Eintrag.'); return; }
+    r.start = ns; if (!r.shiftedFrom) r.shiftedFrom = Date.now(); save(); render();
+    if (!quiet) toast(t < floor ? `Start auf ${fmtTime(ns)} gesetzt (Ende des letzten Eintrags)` : `Start jetzt ${fmtTime(ns)}`);
   }
   function switchTo(cat) {
     // nächste Tätigkeit beginnt am gerundeten Ende, so geht keine Sekunde verloren
@@ -575,8 +594,11 @@ input::-webkit-date-and-time-value { text-align: left; }
     html += `<section class="panel timer ${r ? 'running' : ''}">`;
     if (r) {
       const c = catById(r.cat);
-      html += `<div class="state"><span class="dot"></span><span>Läuft seit ${fmtTime(r.start)} · ${c.name} · ${PLACES[r.place]}</span></div>
+      const fresh = Date.now() - (r.shiftedFrom || r.start) < EARLIER_WINDOW;
+      html += `<div class="state"><span class="dot"></span><span><button class="since" id="sinceBtn" aria-label="Startzeit ändern">Läuft seit ${fmtTime(r.start)}</button> · ${c.name} · ${PLACES[r.place]}</span></div>
+        ${editStart ? `<div class="startedit"><div class="field" style="flex:0 1 130px"><label class="label" for="startIn">Begonnen um</label><input type="time" id="startIn" value="${fmtTime(r.start)}"></div><button class="btn primary" id="startOk">Übernehmen</button><button class="btn ghost" id="startNo">Abbrechen</button></div>` : ''}
         <div class="clock" id="clock">${fmtClock(Date.now() - r.start)}</div>
+        ${fresh && !editStart ? `<div class="earlier" id="earlierRow"><span>Früher begonnen?</span>${[1, 3, 5].map(m => `<button class="btn" data-earlier="${m}" aria-label="${m} Minuten früher">${m} Min.</button>`).join('')}</div>` : ''}
         ${r.note ? `<p class="hint">${esc(r.note)}</p>` : ''}
         <button class="btn big stop" id="stopBtn">Stopp</button>
         <span class="label">Direkt wechseln zu</span>
@@ -613,6 +635,15 @@ input::-webkit-date-and-time-value { text-align: left; }
     const note = document.getElementById('noteIn'); if (note) note.oninput = () => sel.note = note.value;
     const sb = document.getElementById('startBtn'); if (sb) sb.onclick = () => startTimer();
     const st = document.getElementById('stopBtn'); if (st) st.onclick = () => stopTimer(false);
+    $view.querySelectorAll('[data-earlier]').forEach(b => b.onclick = () => setStart(state.running.start - b.dataset.earlier * 60000));
+    const sib = document.getElementById('sinceBtn'); if (sib) sib.onclick = () => { editStart = !editStart; render(); };
+    const sno = document.getElementById('startNo'); if (sno) sno.onclick = () => { editStart = false; render(); };
+    const sok = document.getElementById('startOk'); if (sok) sok.onclick = () => {
+      const v = document.getElementById('startIn').value; if (!v) return;
+      const [h, m] = v.split(':').map(Number), d = new Date(state.running.start); d.setHours(h, m, 0, 0);
+      let t = d.getTime(); if (t > Date.now()) t -= DAY;
+      editStart = false; setStart(t);
+    };
     const lo = document.getElementById('lrOk'); if (lo) lo.onclick = () => { state.running.okUntil = Date.now() + 4 * 3600000; save(); render(); };
     const ls = document.getElementById('lrSave'); if (ls) ls.onclick = () => {
       const v = document.getElementById('lrEnd').value, err = document.getElementById('lrErr');
@@ -1708,6 +1739,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   setInterval(() => {
     if (!state.running) return;
     const c = document.getElementById('clock'); if (c) c.textContent = fmtClock(Date.now() - state.running.start);
+    const er = document.getElementById('earlierRow'); if (er && Date.now() - (state.running.shiftedFrom || state.running.start) >= EARLIER_WINDOW) er.remove();
     if (view === 'erfassen' && Date.now() % 60000 < 1000) {
       const t = startOfDay(Date.now()), ws = startOfWeek(Date.now());
       const a = document.getElementById('sumToday'), b = document.getElementById('sumWeek');
