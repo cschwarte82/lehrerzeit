@@ -605,7 +605,18 @@ input::-webkit-date-and-time-value { text-align: left; }
     }
     if (sel.cat === 'sonstiges' && !sel.note.trim() && !noteWarn) { noteWarn = true; render(); const n = document.getElementById('noteIn'); if (n) n.focus(); return; }
     noteWarn = false;
-    state.running = { cat: sel.cat, place: sel.place, note: sel.note.trim(), start: startAt || Date.now() };
+    let start = startAt || Date.now();
+    if (!startAt) {
+      // Direkt nach dem Stoppen: Das letzte Ende kann durchs Aufrunden bis zu 30 s in der Zukunft liegen.
+      // Dann den letzten Eintrag auf die volle Minute abrunden und genau dort weitermachen, damit sich nichts überschneidet.
+      const last = state.entries.reduce((a, x) => (!a || x.end > a.end ? x : a), null);
+      if (last && last.end > start) {
+        const cut = last.start + Math.floor((start - last.start) / 60000) * 60000;
+        if (cut - last.start >= 60000) last.end = cut;
+        start = last.end;
+      }
+    }
+    state.running = { cat: sel.cat, place: sel.place, note: sel.note.trim(), start };
     state.lastCat = sel.cat; state.lastPlace = sel.place; save(); render();
     if (storageSafe === false) protectStorage();
   }
@@ -621,7 +632,8 @@ input::-webkit-date-and-time-value { text-align: left; }
   // Start des laufenden Timers vorverlegen, aber nie vor das Ende des vorherigen Eintrags
   const EARLIER_WINDOW = 45 * 60000;
   let editStart = false;
-  const startFloor = r => Math.max(r.start - 16 * 3600000, ...state.entries.filter(x => x.end <= r.start + 1000).map(x => x.end));
+  // Untergrenze: Ende jedes Eintrags, der vor dem Timer begonnen hat (auch wenn sein Ende durchs Aufrunden minimal nach dem Start liegt)
+  const startFloor = r => { let f = r.start - 16 * 3600000; for (const x of state.entries) if (x.start < r.start && x.end > f) f = Math.min(x.end, r.start); return f; };
   function setStart(t, quiet) {
     const r = state.running; if (!r) return;
     const floor = startFloor(r), ns = Math.max(floor, Math.min(t, Date.now()));
