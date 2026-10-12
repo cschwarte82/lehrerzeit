@@ -201,6 +201,10 @@ input[type=text], input[type=date], input[type=time], select { width: 100%; min-
 .weeks td:last-child, .weeks th:last-child { text-align: right; }
 .weeks .range { display: block; font-size: .8rem; color: var(--muted); }
 .notechips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.support { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.support p { margin: 0; color: var(--muted); line-height: 1.45; }
+.support .sig { white-space: nowrap; font-style: italic; }
+.support .sig::before { content: '– '; }
 .notedone { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; text-align: left; background: var(--surface-2, transparent); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; color: var(--muted); cursor: pointer; }
 .notedone b { color: var(--ink); font-weight: 600; }
 .notedone .edit { color: var(--accent, var(--ink)); font-size: .9em; text-decoration: underline; flex: none; }
@@ -308,6 +312,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   const PLACES = { schule: 'Schule', zuhause: 'Zuhause' };
   const KEY = 'lehrerzeit.v1';
   const inClaude = !!(window.claude && typeof window.claude.use === 'function');
+  const SUPPORT_URL = 'https://www.paypal.com/pool/9ts2MoiIXj?sr=accr';
   const GUIDE_URL = 'https://cschwarte82.github.io/lehrerzeit/Lehrerzeit-Anleitung.pdf';
   // Frühere Kategorie „Nachbereitung“ ist in „Vor-/Nachbereitung“ aufgegangen
   const CAT_ALIAS = { nachbereitung: 'vorbereitung' };
@@ -1187,6 +1192,9 @@ input::-webkit-date-and-time-value { text-align: left; }
       <span class="label">Meine Kernarbeitszeit</span>
       <p class="hint">Freiwillig. Die Zeit, in der du normalerweise arbeitest, z. B. „7:30–16:00“. Sie erscheint in der Wochenauswertung als grauer Hintergrund im Tagesverlauf.</p>
       ${TT_DAYS.map(([d, n]) => `<div class="field"><label class="label" for="stCore${d}">${n}</label><input type="text" id="stCore${d}" value="${ttText(state.coreHours && state.coreHours[d])}" placeholder="z. B. 7:30–16:00"></div>`).join('')}
+      <div class="support"><span class="label">App unterstützen</span>
+        <p>Lehrerzeit ist und bleibt kostenlos. Wenn sie dir im Alltag hilft und du die Weiterentwicklung unterstützen möchtest, freue ich mich sehr über einen Kaffee. Ganz freiwillig, natürlich. <span class="sig">Christian</span></p>
+        <a class="btn" href="${SUPPORT_URL}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;display:inline-flex;align-items:center;gap:8px">☕ Einen Kaffee spendieren</a></div>
       <p class="warn" id="stErr" hidden></p>
       <div class="actions"><div><button class="btn" id="stCancel">Abbrechen</button><button class="btn primary" id="stSave">Speichern</button></div></div>
     </div></div>`;
