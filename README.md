@@ -9,6 +9,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Tagesverlauf (Einträge zur echten Uhrzeit) und Auswertung nach Tageszeit (Vormittag, Nachmittag, Abend, Nacht) für Tag, Woche, Monat und Schuljahr, optional mit eigener Kernarbeitszeit
 - Timer rundet beim Stoppen auf volle Minuten (ab 30 Sekunden auf)
 - Balken auf dem Startbildschirm zeigt, wie viel vom Wochensoll schon geschafft ist
+- Reiter „Achtsamkeit“: zeigt freie Abende, Wochenenden und Ferientage; eigene Feierabend-Grenze und freie Tage, beim Start danach fragt die App freundlich nach
 - Arbeitsschutz-Hinweise (Orientierung an Arbeitszeitgesetz und EU-Arbeitszeitrichtlinie): mehr als 10 Stunden am Tag, fehlende Pausen, zu kurze Ruhezeit, mehr als 48 Stunden im Schnitt
 - Jahressoll (Standard 1805 h auf 40 Unterrichtswochen), Ferienwochen ohne Soll (Arbeit in den Ferien zählt als Plus) und freie Tage
 - Export als Excel-Datei, auch mit Stunden je Tagesabschnitt und Kernarbeitszeit
@@ -19,7 +20,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Zuletzt benutzte Notizen erscheinen unter dem Notizfeld zum Antippen
 - In der Auswertung führt ein Tipp auf einen Monat (Schuljahr) oder eine Woche (Monat) direkt in diese Ansicht
 - Nach dem Blättern mit den Pfeilen bringt „Zu heute“ bzw. „Zur aktuellen Woche/zum aktuellen Monat“ direkt zurück
-- Mit einem Wisch nach links oder rechts wechselst du zwischen Erfassen, Auswertung und Einträge
+- Mit einem Wisch nach links oder rechts wechselst du zwischen den Reitern
 - Die aktuelle Anleitung ist jederzeit unter Einstellungen → „Anleitung öffnen“ erreichbar
 - Zeigt nach einem Update einmal kurz, was neu ist
 - Optional: Stundenplan hinterlegen und beim Nachtragen eines Tages die Unterrichtsblöcke mit einem Tipp einfügen (danach änderbar)

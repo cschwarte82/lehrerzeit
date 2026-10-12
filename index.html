@@ -54,14 +54,14 @@ button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 
-.app { max-width: 640px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 96px; display: flex; flex-direction: column; gap: 20px; }
+.app { max-width: 640px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 106px; display: flex; flex-direction: column; gap: 20px; }
 header.top { display: flex; align-items: center; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
 header.top .today { flex-basis: 100%; }
 header.top h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; margin: 0; letter-spacing: -0.01em; }
 header.top .today { color: var(--muted); font-size: .95rem; }
 
-nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
-nav.tabs button { flex: 1; background: none; border: 0; padding: 12px 4px 14px; font-weight: 600; color: var(--muted); font-size: .95rem; }
+nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; padding-inline: 6px; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+nav.tabs button { flex: 1 1 auto; background: none; border: 0; padding: 17px 4px 19px; font-weight: 600; color: var(--muted); font-size: .95rem; }
 nav.tabs button[aria-selected="true"] { color: var(--accent); box-shadow: inset 0 3px 0 var(--accent); }
 @media (min-width: 720px) {
   nav.tabs { position: static; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; padding: 0; }
@@ -89,6 +89,25 @@ h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; mar
 #view.slideL { animation: slideL .18s ease-out; }
 #view.slideR { animation: slideR .18s ease-out; }
 @media (prefers-reduced-motion: reduce) { #view.slideL, #view.slideR { animation: none; } }
+nav.tabs button { min-width: 0; }
+@media (max-width: 400px) { nav.tabs button { font-size: .84rem; padding-inline: 2px; } }
+.restgrid { display: grid; grid-template-columns: 44px repeat(7, minmax(0, 1fr)); gap: 6px 4px; align-items: center; text-align: center; }
+.restgrid .wd { font-size: .75rem; font-weight: 700; color: var(--muted); }
+.restgrid .kw { font-size: .75rem; color: var(--muted); text-align: left; }
+.rd { width: 24px; height: 24px; border-radius: 50%; margin: auto; box-sizing: border-box; }
+.rd.free { background: var(--good); }
+.rd.eve { border: 3px solid var(--good); }
+.rd.late { background: var(--tz3); }
+.rd.today { border: 2px dashed var(--muted); }
+.rd.fut, .rd.none { border: 1px dashed var(--line); }
+.resttiles b { white-space: nowrap; }
+.resttiles .label { hyphens: manual; }
+.daytoggle.lfree[aria-pressed="false"] span { text-decoration: none; }
+.restlegend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85rem; color: var(--muted); }
+.restlegend span { display: inline-flex; align-items: center; gap: 6px; }
+.restlegend .rd { width: 14px; height: 14px; margin: 0; }
+.restlegend .rd.eve { border-width: 2px; }
+.goodnote { margin: 0; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--good) 12%, var(--surface)); }
 @keyframes pulse { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--chalk) 10%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .timer.running .dot { animation: none; } }
 
@@ -102,7 +121,7 @@ h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; mar
 .startbar #startBtn { flex: 1; min-width: 0; }
 .longrun { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
 .longrun p { margin: 0; }
-@media (max-width: 719px) { .startbar { position: sticky; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); z-index: 5; background: var(--surface); padding-block: 8px; margin-block: -8px; } .startbar #startBtn { box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 22%, transparent); } }
+@media (max-width: 719px) { .startbar { position: sticky; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); z-index: 5; background: var(--surface); padding-block: 8px; margin-block: -8px; } .startbar #startBtn { box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 22%, transparent); } }
 @media (max-width: 480px) { .chips { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .chip { min-height: 42px; padding: 7px 9px; font-size: .88rem; gap: 7px; } }
 .chip .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .chip[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
@@ -241,7 +260,7 @@ input::-webkit-date-and-time-value { text-align: left; }
 .remind p { margin: 0; }
 .toast.act { display: flex; align-items: center; white-space: nowrap; }
 .toast button { margin-left: 14px; background: none; border: 0; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; padding: 6px 2px; cursor: pointer; }
-.toast { position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; z-index: 30; font-weight: 600; max-width: calc(100% - 32px); }
+.toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; z-index: 30; font-weight: 600; max-width: calc(100% - 32px); }
 </style>
 
 <div class="app" lang="de">
@@ -255,6 +274,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     <button role="tab" id="tab-erfassen" aria-selected="true" data-view="erfassen">Erfassen</button>
     <button role="tab" id="tab-auswertung" aria-selected="false" data-view="auswertung">Auswertung</button>
     <button role="tab" id="tab-eintraege" aria-selected="false" data-view="eintraege">Einträge</button>
+    <button role="tab" id="tab-achtsam" aria-selected="false" data-view="achtsam">Achtsamkeit</button>
   </nav>
 
   <main id="view"></main>
@@ -474,6 +494,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     { v: 20, items: [
       'Auswertung → Tag zeigt jetzt auch „Nach Tageszeit“ mit Kernarbeitszeit, wie Woche und Monat.',
     ] },
+    { v: 21, items: [
+      'Neuer Reiter „Achtsamkeit“: Er zeigt deine freien Abende, Wochenenden und Ferientage. Unter „Meine Grenzen“ legst du fest, wann für dich Feierabend ist; startest du danach, fragt die App freundlich nach.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -558,7 +581,28 @@ input::-webkit-date-and-time-value { text-align: left; }
   // ---------- Timer actions ----------
   let noteWarn = false;
   const LONG_RUN = 10 * 3600000;
+  // Achtsamkeit: freundlich nachfragen, wenn nach der eigenen Feierabend-Grenze oder an einem freien Tag gestartet wird (einmal pro Tag)
+  let limitOkDay = 0;
+  function limitReason(t) {
+    const L = state.limits; if (!L || L.ask === false) return '';
+    const d = new Date(t), day = startOfDay(t), mins = d.getHours() * 60 + d.getMinutes();
+    const wd = mins < 360 ? new Date(addDays(day, -1)).getDay() : d.getDay();
+    if ((L.free || []).includes(wd)) return `${WD_LONG[wd]} ist einer deiner freien Tage.`;
+    const ev = limitMin(); if (L.evening && (mins >= ev || mins < 360)) return `Du wolltest ab ${hm(ev)} Uhr Feierabend machen.`;
+    return '';
+  }
   function startTimer(startAt) {
+    if (!startAt && limitOkDay !== startOfDay(Date.now())) {
+      const why = limitReason(Date.now());
+      if (why) {
+        $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="lmTitle">
+          <h2 id="lmTitle">Eigentlich hast du frei</h2><p>${why} Möchtest du trotzdem starten?</p>
+          <div class="actions"><div><button class="btn" id="lmNo">Lieber nicht</button><button class="btn primary" id="lmYes">Trotzdem starten</button></div></div></div></div>`;
+        document.getElementById('lmNo').onclick = () => { close(); toast('Gut so. Genieß deinen Feierabend!'); };
+        document.getElementById('lmYes').onclick = () => { limitOkDay = startOfDay(Date.now()); close(); startTimer(); };
+        return;
+      }
+    }
     if (sel.cat === 'sonstiges' && !sel.note.trim() && !noteWarn) { noteWarn = true; render(); const n = document.getElementById('noteIn'); if (n) n.focus(); return; }
     noteWarn = false;
     state.running = { cat: sel.cat, place: sel.place, note: sel.note.trim(), start: startAt || Date.now() };
@@ -717,22 +761,28 @@ input::-webkit-date-and-time-value { text-align: left; }
     $view.querySelectorAll('[data-entry]').forEach(b => b.onclick = () => openEditor(state.entries.find(e => e.id === b.dataset.entry)));
   }
 
+  // Lange Listen bremsen das Handy: zuerst nur die letzten Tage zeigen
+  const LIST_STEP = 30; let listDays = LIST_STEP;
   function renderEintraege() {
     const sorted = state.entries.slice().sort((a, b) => b.start - a.start);
     if (!sorted.length) { $view.innerHTML = emptyHTML() + devicesPanelHTML(); bindEmpty(); bindDevicesPanel(); return; }
     const groups = new Map();
     for (const e of sorted) { const k = startOfDay(e.start); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
     let html = `<div class="row" style="justify-content:space-between"><h2>Alle Einträge</h2><button class="btn" id="addBtn">Zeit nachtragen</button></div>`;
+    let shown = 0;
     for (const [k, list] of groups) {
+      if (shown++ >= listDays) break;
       const tot = list.reduce((s, e) => s + e.end - e.start, 0);
       html += `<section class="day"><div class="day-head"><strong>${fmtDay(k)}</strong><span class="num">${fmtDur(tot)} h</span></div>${list.map(entryHTML).join('')}</section>`;
     }
+    if (groups.size > listDays) html += `<button class="btn" id="moreBtn" style="align-self:center">Ältere Einträge anzeigen</button>`;
     html += devicesPanelHTML();
     html += `<button class="btn ghost" id="wipeBtn" style="align-self:center">Alle Daten löschen</button>`;
     $view.innerHTML = html;
     bindDevicesPanel();
     document.getElementById('addBtn').onclick = () => openEditor(null);
     document.getElementById('wipeBtn').onclick = openWipe;
+    const more = document.getElementById('moreBtn'); if (more) more.onclick = () => { const y = scrollY; listDays += LIST_STEP; render(); scrollTo(0, y); };
     bindEntries();
   }
 
@@ -1577,8 +1627,83 @@ input::-webkit-date-and-time-value { text-align: left; }
     weekAnchor = ws; save(); setView('auswertung'); toast('Beispielwoche geladen (letzte Woche)');
   }
 
+  // ---------- Achtsamkeit ----------
+  const WD_LONG = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+  const limitMin = () => { const v = state.limits && state.limits.evening; if (!v) return 18 * 60; const [h, m] = v.split(':').map(Number); return h * 60 + m; };
+  const MIN_WORK = 5 * 60000;
+  // Ein Tag reicht von 6 Uhr bis 6 Uhr am Folgetag (Arbeit nach Mitternacht gehört zum Abend davor)
+  let restData = null; // pro Aufbau einmal vorbereitet (schnell auch bei vielen Jahren Daten)
+  const workIn = (a, b) => restData.list.reduce((s, e) => e.end > a && e.start < b ? s + overlap(e, a, b) : s, 0);
+  function restOf(d) {
+    const H = 3600000, lim = limitMin() * 60000;
+    if (d > Date.now()) return 'fut';
+    if (d < restData.first) return 'none';
+    if (d === startOfDay(Date.now())) return 'today';
+    if (workIn(d + 6 * H, d + 30 * H) < MIN_WORK) return 'free';
+    return workIn(d + lim, d + 30 * H) < MIN_WORK ? 'eve' : 'late';
+  }
+  function renderAchtsam() {
+    { let first = Infinity; for (const e of state.entries) if (e.start < first) first = e.start;
+      const from = Math.min(schoolYearStart(Date.now()), addDays(startOfWeek(Date.now()), -35));
+      restData = { first: first === Infinity ? Infinity : startOfDay(first), list: allEntries().filter(e => e.end > from) }; }
+    const L = state.limits || {}, free = L.free || [], today = startOfDay(Date.now()), ws = startOfWeek(today);
+    const limTxt = hm(limitMin());
+    // letzte 7 abgeschlossene Tage
+    const last7 = [1, 2, 3, 4, 5, 6, 7].map(i => addDays(today, -i)), r7 = last7.map(restOf);
+    const n7 = r7.filter(x => x !== 'none').length, eves = r7.filter(x => x === 'free' || x === 'eve').length, days = r7.filter(x => x === 'free').length;
+    // letzte 4 Wochen
+    const weeks = [3, 2, 1, 0].map(i => addDays(ws, -7 * i));
+    const past28 = []; for (let i = 1; i <= 28; i++) past28.push(addDays(today, -i));
+    const wkEnds = [1, 2, 3, 4].map(k => addDays(ws, -7 * k)).map(w => [addDays(w, 5), addDays(w, 6)]).filter(([sa]) => restOf(sa) !== 'none');
+    const freeWE = wkEnds.filter(([sa, so]) => restOf(sa) === 'free' && restOf(so) === 'free').length;
+    // Grenzen in den letzten 4 Wochen
+    const limDays = past28.filter(d => !free.includes(new Date(d).getDay()) && restOf(d) !== 'none');
+    const limKept = limDays.filter(d => restOf(d) !== 'late').length;
+    const freeDays = past28.filter(d => free.includes(new Date(d).getDay()) && restOf(d) !== 'none'), freeKept = freeDays.filter(d => restOf(d) === 'free').length;
+    // Ferien im laufenden Schuljahr
+    const sy = schoolYearStart(Date.now()), hol = [];
+    for (let d = sy; d < today; d = addDays(d, 1)) if (isHoliday(d) && restOf(d) !== 'none') hol.push(d);
+    const holFree = hol.filter(d => restOf(d) === 'free').length;
+    const anyData = state.entries.length > 0;
+    let html = `<section class="panel"><h2>Deine Erholung</h2>
+      ${anyData ? `<p class="goodnote">In den letzten ${n7 === 7 ? '7 Tagen' : n7 === 1 ? 'Tag' : `${n7} Tagen`} hattest du <b>${eves} freie${eves === 1 ? 'n Abend' : ' Abende'}</b>${days ? ` und <b>${days} ganz freie${days === 1 ? 'n Tag' : ' Tage'}</b>` : ''}.</p>` : '<p class="hint">Sobald du Zeiten erfasst, siehst du hier, wie viel Erholung du dir gönnst.</p>'}
+      <div class="soll resttiles">
+        <div><span class="label">Abende frei</span><b class="num">${eves}/${n7}</b><span class="hint">letzte 7 Tage</span></div>
+        <div><span class="label">Wochen&shy;enden frei</span><b class="num">${wkEnds.length ? `${freeWE}/${wkEnds.length}` : '–'}</b><span class="hint">letzte 4 Wochen</span></div>
+        <div><span class="label">Ferien&shy;tage frei</span><b class="num">${hol.length ? `${holFree}/${hol.length}` : '–'}</b><span class="hint">${hol.length ? 'dieses Schuljahr' : 'noch keine Ferien'}</span></div>
+      </div>
+      <span class="label">Die letzten 4 Wochen</span>
+      <div class="restgrid"><span></span>${[1, 2, 3, 4, 5, 6, 0].map(i => `<span class="wd">${WD[i]}</span>`).join('')}
+        ${weeks.map(w => `<span class="kw">KW ${isoWeek(w).week}</span>${[0, 1, 2, 3, 4, 5, 6].map(i => { const d = addDays(w, i), r = restOf(d); return `<span class="rd ${r}" title="${fmtDay(d)}" aria-label="${fmtDay(d)}: ${{ free: 'ganzer Tag frei', eve: 'Abend frei', late: `nach ${limTxt} Uhr gearbeitet`, today: 'heute', fut: '', none: 'noch nicht erfasst' }[r]}"></span>`; }).join('')}`).join('')}
+      </div>
+      <div class="restlegend"><span><i class="rd free"></i>Ganzer Tag frei</span><span><i class="rd eve"></i>Abend frei (ab ${limTxt} Uhr)</span><span><i class="rd late"></i>Abends gearbeitet</span></div>
+    </section>`;
+    html += `<section class="panel"><h2>Meine Grenzen</h2>
+      <p class="hint">Leg selbst fest, wann für dich Schluss ist. Startest du danach den Timer, fragt die App freundlich nach. Niemand außer dir sieht das.</p>
+      <div class="row"><div class="field" style="flex:0 1 150px"><label class="label" for="lmEve">Feierabend ab</label><input type="time" id="lmEve" value="${L.evening || ''}"></div>
+        ${L.evening ? '<button class="btn ghost" id="lmEveDel">Keine Grenze</button>' : ''}</div>
+      <span class="label">Arbeitsfreie Tage</span>
+      <div class="row">${[1, 2, 3, 4, 5, 6, 0].map(i => `<button class="daytoggle lfree" data-lfree="${i}" aria-pressed="${free.includes(i)}"><span>${WD[i]}</span></button>`).join('')}</div>
+      <label class="row" style="gap:8px;align-items:center"><input type="checkbox" id="lmAsk" ${L.ask === false ? '' : 'checked'}> Beim Start freundlich nachfragen</label>
+      ${anyData && (L.evening || free.length) ? `<div class="soll" style="grid-template-columns:1fr 1fr">
+        ${L.evening ? `<div><span class="label">Feierabend gehalten</span><b class="num">${limKept}/${limDays.length}</b><span class="hint">Tage, letzte 4 Wochen</span></div>` : ''}
+        ${free.length ? `<div><span class="label">Freie Tage gehalten</span><b class="num">${freeKept}/${freeDays.length}</b><span class="hint">letzte 4 Wochen</span></div>` : ''}
+      </div>` : ''}
+    </section>`;
+    $view.innerHTML = html;
+    const setL = (k, v) => { state.limits = { ...(state.limits || {}), [k]: v }; save(); render(); };
+    // Nur speichern, solange das Uhrzeit-Fenster offen ist; neu zeichnen erst nach Bestätigung (sonst schließt iOS das Fenster sofort)
+    const eve = document.getElementById('lmEve'); let eveChanged = false;
+    eve.onchange = () => { state.limits = { ...(state.limits || {}), evening: eve.value || '' }; save(); eveChanged = true; };
+    eve.onblur = () => { if (eveChanged) render(); };
+    const del = document.getElementById('lmEveDel'); if (del) del.onclick = () => setL('evening', '');
+    $view.querySelectorAll('[data-lfree]').forEach(b => b.onclick = () => { const i = +b.dataset.lfree; setL('free', free.includes(i) ? free.filter(x => x !== i) : [...free, i]); });
+    document.getElementById('lmAsk').onchange = e => setL('ask', e.target.checked);
+  }
+
   // ---------- Shell ----------
   function setView(v) {
+    if (v !== view) listDays = LIST_STEP;
     view = v;
     document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.view === v));
     render(); window.scrollTo(0, 0);
@@ -1588,12 +1713,12 @@ input::-webkit-date-and-time-value { text-align: left; }
     if (startOfDay(Date.now()) !== sel.placeDay) { sel.place = placeFor(Date.now()); sel.placeDay = startOfDay(Date.now()); }
     const d = new Date(); const { week } = isoWeek(d);
     document.getElementById('todayLabel').textContent = `${fmtDay(d)} · KW ${week}`;
-    if (view === 'erfassen') renderErfassen(); else if (view === 'eintraege') renderEintraege(); else renderAuswertung();
+    if (view === 'erfassen') renderErfassen(); else if (view === 'eintraege') renderEintraege(); else if (view === 'achtsam') renderAchtsam(); else renderAuswertung();
   }
   document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => setView(b.dataset.view));
   document.getElementById('openSettings').onclick = openSettings;
   // Wischen zwischen den Reitern (nicht in Dialogen, Eingabefeldern oder seitlich scrollbaren Tabellen)
-  const VIEWS = ['erfassen', 'auswertung', 'eintraege'];
+  const VIEWS = ['erfassen', 'auswertung', 'eintraege', 'achtsam'];
   let swipe = null;
   const blocksSwipe = el => {
     for (; el && el !== document.body; el = el.parentElement) {
@@ -1629,7 +1754,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   // Ablage: data/users/<id>/meta (Einstellungen, Ferien, laufender Timer) und data/users/<id>/m-JJJJ-MM (Einträge des Monats).
   // Gelöschte Einträge bleiben als {deleted:true} stehen, damit andere Geräte sie ebenfalls entfernen.
   if (state.paused) { delete state.paused; }
-  const META_KEYS = ['settings', 'offDays', 'holidayWeeks', 'presets', 'running', 'lastCat', 'lastPlace', 'timetable', 'customCats', 'coreHours'];
+  const META_KEYS = ['settings', 'offDays', 'holidayWeeks', 'presets', 'running', 'lastCat', 'lastPlace', 'timetable', 'customCats', 'coreHours', 'limits'];
   const metaOf = () => { const m = {}; for (const k of META_KEYS) m[k] = state[k] === undefined ? null : state[k]; return m; };
   const canon = v => v === null || typeof v !== 'object' ? JSON.stringify(v) : Array.isArray(v) ? '[' + v.map(canon).join(',') + ']' : '{' + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
   const monthKey = t => { const d = new Date(t); return `m-${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
