@@ -6,7 +6,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Arbeitszeit per Start/Stopp erfassen, nach Tätigkeit (16 zur Auswahl, z. B. Unterricht, Vor-/Nachbereitung, Korrekturen, Lernzeit, Administration) und Ort (Schule/Zuhause)
 - Einträge nachträglich korrigieren oder nachtragen (der Vorschlag schließt an den letzten Eintrag des Tages an); warnt bei Überschneidungen, Löschen lässt sich kurz rückgängig machen
 - Wochen-, Monats- und Schuljahressummen mit Soll und Saldo; in der Wochengrafik einen Tag antippen oder unter „Auswertung → Tag“ einen einzelnen Tag ansehen, um dort direkt nachzutragen oder zu korrigieren
-- Tagesverlauf je Woche und Auswertung nach Tageszeit (Vormittag, Nachmittag, Abend, Nacht), optional mit eigener Kernarbeitszeit
+- Tagesverlauf (Einträge zur echten Uhrzeit) und Auswertung nach Tageszeit (Vormittag, Nachmittag, Abend, Nacht) für Tag, Woche, Monat und Schuljahr, optional mit eigener Kernarbeitszeit
 - Timer rundet beim Stoppen auf volle Minuten (ab 30 Sekunden auf)
 - Balken auf dem Startbildschirm zeigt, wie viel vom Wochensoll schon geschafft ist
 - Arbeitsschutz-Hinweise (Orientierung an Arbeitszeitgesetz und EU-Arbeitszeitrichtlinie): mehr als 10 Stunden am Tag, fehlende Pausen, zu kurze Ruhezeit, mehr als 48 Stunden im Schnitt
@@ -19,7 +19,7 @@ Eine kleine App für Handy und Laptop. Sie läuft im Browser und lässt sich wie
 - Zuletzt benutzte Notizen erscheinen unter dem Notizfeld zum Antippen
 - In der Auswertung führt ein Tipp auf einen Monat (Schuljahr) oder eine Woche (Monat) direkt in diese Ansicht
 - Nach dem Blättern mit den Pfeilen bringt „Zu heute“ bzw. „Zur aktuellen Woche/zum aktuellen Monat“ direkt zurück
-- Mit einem Wisch nach links oder rechts wechselst du zwischen Erfassen, Einträge und Auswertung
+- Mit einem Wisch nach links oder rechts wechselst du zwischen Erfassen, Auswertung und Einträge
 - Die aktuelle Anleitung ist jederzeit unter Einstellungen → „Anleitung öffnen“ erreichbar
 - Zeigt nach einem Update einmal kurz, was neu ist
 - Optional: Stundenplan hinterlegen und beim Nachtragen eines Tages die Unterrichtsblöcke mit einem Tipp einfügen (danach änderbar)
