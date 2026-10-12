@@ -253,8 +253,8 @@ input::-webkit-date-and-time-value { text-align: left; }
 
   <nav class="tabs" role="tablist">
     <button role="tab" id="tab-erfassen" aria-selected="true" data-view="erfassen">Erfassen</button>
-    <button role="tab" id="tab-eintraege" aria-selected="false" data-view="eintraege">Einträge</button>
     <button role="tab" id="tab-auswertung" aria-selected="false" data-view="auswertung">Auswertung</button>
+    <button role="tab" id="tab-eintraege" aria-selected="false" data-view="eintraege">Einträge</button>
   </nav>
 
   <main id="view"></main>
@@ -469,7 +469,10 @@ input::-webkit-date-and-time-value { text-align: left; }
       'Auswertung: Wenn du mit den Pfeilen geblättert hast, bringt dich „Zu heute“, „Zur aktuellen Woche“ bzw. „Zum aktuellen Monat“ direkt zurück.',
     ] },
     { v: 19, items: [
-      'Wischen: Mit einem Wisch nach links oder rechts wechselst du zwischen Erfassen, Einträge und Auswertung.',
+      'Wischen: Mit einem Wisch nach links oder rechts wechselst du zwischen Erfassen, Auswertung und Einträge.',
+    ] },
+    { v: 20, items: [
+      'Auswertung → Tag zeigt jetzt auch „Nach Tageszeit“ mit Kernarbeitszeit, wie Woche und Monat.',
     ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
@@ -756,18 +759,12 @@ input::-webkit-date-and-time-value { text-align: left; }
     const days = [];
     for (let i = 0; i < n; i++) {
       const d = addDays(from, i), H = 3600000;
-      // je Tagesabschnitt von der unteren Linie aus stapeln (zeitliche Reihenfolge); frühe Arbeit vor 6 Uhr zählt zur Nacht
-      const zoneOf = h => h < 6 || h >= 22 ? 3 : h < 12 ? 0 : h < 17 ? 1 : 2;
-      const fill = [0, 0, 0, 0], blocks = [];
-      const cuts = [0, 6, 12, 17, 22, 30];
+      // Blöcke zur echten Uhrzeit, wie die Kernarbeitszeit; Arbeit vor 6 Uhr erscheint oben im Nachtbereich
+      const blocks = [];
       for (const e of allEntries().filter(x => x.start >= d && x.start < addDays(d, 1)).sort((x, y) => x.start - y.start)) {
         const a = (e.start - d) / H, b = Math.min((e.end - d) / H, 30), c = catById(e.cat).color;
-        for (let k = 0; k < cuts.length - 1; k++) {
-          const pa = Math.max(a, cuts[k]), pb = Math.min(b, cuts[k + 1]); if (pb <= pa) continue;
-          const z = zoneOf(pa), base = TZ[z].a, len = Math.min(pb - pa, TZ[z].b - TZ[z].a - fill[z]);
-          if (len > 0) blocks.push(`<i class="blk" style="bottom:${pos(base + fill[z])}%;height:${len / 24 * 100}%;background:${c}"></i>`);
-          fill[z] += Math.max(0, len);
-        }
+        for (const [pa, pb] of [[a + 24, Math.min(b, 6) + 24], [Math.max(a, 6), b]])
+          if (pb > pa) blocks.push(`<i class="blk" style="bottom:${pos(pa)}%;height:${(pb - pa) / 24 * 100}%;background:${c}"></i>`);
       }
       // Kernarbeitszeit als durchgehender Balken nach Uhrzeit
       const core = coreFor(d).map(([ca, cb]) => { const x = Math.max(ca / 60, 6), y = Math.min(cb / 60, 30); return y > x ? `<i class="core" style="bottom:${pos(x)}%;height:${(y - x) / 24 * 100}%"></i>` : ''; }).join('');
@@ -887,6 +884,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         ${azHints(from).map(t => `<p class="azwarn" style="margin-top:10px">${t}</p>`).join('')}
       </section>`;
       html += `<section class="panel"><h2>Tagesverlauf</h2>${s.total ? timelineHTML(from, 1) + `<div class="tzlegend">${state.coreHours && coreFor(from).length ? '<span><i></i>Kernarbeitszeit</span>' : ''}${CATS.filter(c => s.byCat[c.id]).map(c => `<span><i style="background:${c.color};width:10px"></i>${c.name}</span>`).join('')}</div>` : '<p class="hint">An diesem Tag ist noch nichts eingetragen.</p>'}</section>`;
+      html += tzHTML(from, to);
       html += `<section class="panel"><h2>Einträge</h2>
         ${list.length ? `<div style="display:grid;gap:6px">${list.map(entryHTML).join('')}</div><p class="hint" style="margin-top:8px">Eintrag antippen, um ihn zu korrigieren.</p>` : ''}
         <div class="row" style="margin-top:10px"><button class="btn primary" id="tdAdd">Zeit nachtragen</button>${gaps.length ? `<button class="btn" id="tdGaps">Lücken füllen (${gaps.length})</button>` : ''}${wd > 0 && wd < 6 && !isHoliday(from) ? `<button class="btn ghost" data-off="${keyOf(from)}">${isOff(from) ? 'Freien Tag ändern' : 'Als freien Tag markieren'}</button>` : ''}</div>
@@ -1595,7 +1593,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => setView(b.dataset.view));
   document.getElementById('openSettings').onclick = openSettings;
   // Wischen zwischen den Reitern (nicht in Dialogen, Eingabefeldern oder seitlich scrollbaren Tabellen)
-  const VIEWS = ['erfassen', 'eintraege', 'auswertung'];
+  const VIEWS = ['erfassen', 'auswertung', 'eintraege'];
   let swipe = null;
   const blocksSwipe = el => {
     for (; el && el !== document.body; el = el.parentElement) {
