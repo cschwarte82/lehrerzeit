@@ -201,6 +201,10 @@ input[type=text], input[type=date], input[type=time], select { width: 100%; min-
 .weeks td:last-child, .weeks th:last-child { text-align: right; }
 .weeks .range { display: block; font-size: .8rem; color: var(--muted); }
 .notechips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.notedone { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; text-align: left; background: var(--surface-2, transparent); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; color: var(--muted); cursor: pointer; }
+.notedone b { color: var(--ink); font-weight: 600; }
+.notedone .edit { color: var(--accent, var(--ink)); font-size: .9em; text-decoration: underline; flex: none; }
+.noterow { display: flex; gap: 8px; } .noterow input { flex: 1 1 auto; min-width: 0; } .noterow .btn { flex: 0 0 auto; padding-inline: 18px; font-size: 1.1rem; }
 .notechips button { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 999px; padding: 5px 11px; font: inherit; font-size: .85rem; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weeks tr.go { cursor: pointer; }
 .weeks tr.go:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
@@ -497,6 +501,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     { v: 21, items: [
       'Neuer Reiter „Achtsamkeit“: Er zeigt deine freien Abende, Wochenenden und Ferientage. Unter „Meine Grenzen“ legst du fest, wann für dich Feierabend ist; startest du danach, fragt die App freundlich nach.',
     ] },
+    { v: 22, items: [
+      'Notiz bei laufender Zeit: Unter der Uhr steht jetzt immer ein Notizfeld. Nach einem Wechsel läuft die Zeit sofort weiter, und du kannst die Notiz nebenher eintragen. Bei „Sonstiges“ ist das Feld gleich zum Tippen bereit.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -579,7 +586,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
 
   // ---------- Timer actions ----------
-  let noteWarn = false;
+  let noteWarn = false, noteSaveT = 0, noteEdit = false;
   const LONG_RUN = 10 * 3600000;
   // Achtsamkeit: freundlich nachfragen, wenn nach der eigenen Feierabend-Grenze oder an einem freien Tag gestartet wird (einmal pro Tag)
   let limitOkDay = 0;
@@ -659,8 +666,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     const end = r.start + Math.floor((Date.now() - r.start) / 60000) * 60000;
     if (end - r.start >= 60000) state.entries.push({ id: uid(), cat: r.cat, place: r.place, note: r.note, start: r.start, end });
     state.running = { cat, place: r.place, note: '', start: end - r.start >= 60000 ? end : r.start };
-    sel.cat = cat; sel.note = ''; state.lastCat = cat; editStart = false; noteWarn = false;
+    sel.cat = cat; sel.note = ''; state.lastCat = cat; editStart = false; noteWarn = false; noteEdit = false;
     save(); render(); toast(`Gewechselt zu ${catById(cat).name}`);
+    if (cat === 'sonstiges') { const n = document.getElementById('runNote'); if (n) n.focus(); }
   }
 
   // ---------- Views ----------
@@ -702,7 +710,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         ${editStart ? `<div class="startedit"><div class="field" style="flex:0 1 130px"><label class="label" for="startIn">Begonnen um</label><input type="time" id="startIn" value="${fmtTime(r.start)}"></div><button class="btn primary" id="startOk">Übernehmen</button><button class="btn ghost" id="startNo">Abbrechen</button></div>` : ''}
         <div class="clock" id="clock">${fmtClock(Date.now() - r.start)}</div>
         ${fresh && !editStart ? `<div class="earlier" id="earlierRow"><span>Früher begonnen?</span>${[1, 3, 5].map(m => `<button class="btn" data-earlier="${m}" aria-label="${m} Minuten früher">${m} Min.</button>`).join('')}</div>` : ''}
-        ${r.note ? `<p class="hint">${esc(r.note)}</p>` : ''}
+        ${r.note && !noteEdit ? `<button type="button" class="notedone" id="noteEditBtn"><span>Notiz: <b>${esc(r.note)}</b></span><span class="edit">ändern</span></button>` : `<div class="field" style="flex:none"><label class="label" for="runNote">Notiz ${r.cat === 'sonstiges' ? '(worum geht es?)' : '(optional)'}</label><div class="noterow"><input type="text" id="runNote" enterkeyhint="done" placeholder="${r.cat === 'sonstiges' ? 'Worum geht es?' : 'z. B. 9b Mathe, Klausur Q1'}" value="${esc(r.note || '')}"><button type="button" class="btn primary" id="runNoteOk" aria-label="Notiz übernehmen">✓</button></div>${noteChipsHTML(r.cat, 'data-runnote')}</div>`}
         <button class="btn big stop" id="stopBtn">Stopp</button>
         <span class="label">Direkt wechseln zu</span>
         ${chipsHTML(r.cat, 'data-switch')}`;
@@ -736,6 +744,20 @@ input::-webkit-date-and-time-value { text-align: left; }
     $view.querySelectorAll('[data-place]').forEach(b => b.onclick = () => { sel.place = b.dataset.place; render(); });
     $view.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => switchTo(b.dataset.switch));
     const note = document.getElementById('noteIn'); if (note) note.oninput = () => sel.note = note.value;
+    // Notiz zum laufenden Timer (bei Sonstiges): Zeit läuft schon, Notiz kann nebenher eingetragen werden
+    const rnt = document.getElementById('runNote');
+    if (rnt) {
+      // Jede Eingabe sofort sichern (kurz verzögert), damit beim Wischen oder Wechseln nichts verloren geht
+      rnt.onfocus = () => { noteEdit = true; };
+      // Nach der Eingabe verschwindet das Feld; die Notiz steht dann als Text da (antippen zum Ändern)
+      rnt.onblur = () => setTimeout(() => { if (document.activeElement !== rnt) { noteEdit = false; if (rnt.isConnected) { clearTimeout(noteSaveT); save(); render(); } } }, 200);
+      rnt.oninput = () => { if (!state.running) return; state.running.note = rnt.value.trim(); clearTimeout(noteSaveT); noteSaveT = setTimeout(save, 400); };
+      const ok = () => { clearTimeout(noteSaveT); if (state.running) { state.running.note = rnt.value.trim(); save(); } rnt.blur(); if (rnt.value.trim()) toast('Notiz gespeichert'); };
+      rnt.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); ok(); } };
+      document.getElementById('runNoteOk').onclick = ok;
+    }
+    $view.querySelectorAll('[data-runnote]').forEach(b => b.onclick = () => { if (state.running) { noteEdit = false; state.running.note = b.dataset.runnote; save(); render(); toast('Notiz gespeichert'); } });
+    const neb = document.getElementById('noteEditBtn'); if (neb) neb.onclick = () => { noteEdit = true; render(); const n = document.getElementById('runNote'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } };
     $view.querySelectorAll('[data-note]').forEach(b => b.onclick = () => { sel.note = b.dataset.note; noteWarn = false; render(); });
     const sb = document.getElementById('startBtn'); if (sb) sb.onclick = () => startTimer();
     const st = document.getElementById('stopBtn'); if (st) st.onclick = () => stopTimer(false);
