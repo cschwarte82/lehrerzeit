@@ -641,8 +641,14 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
   const noteChipsHTML = (cat, attr) => { const l = recentNotes(cat); return l.length ? `<div class="notechips" aria-label="Zuletzt benutzt">${l.map(t => `<button type="button" ${attr}="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''; };
   function switchTo(cat) {
-    // nächste Tätigkeit beginnt am gerundeten Ende, so geht keine Sekunde verloren
-    const end = stopTimer(true); sel.cat = cat; startTimer(end); toast(`Gewechselt zu ${catById(cat).name}`);
+    const r = state.running; if (!r || r.cat === cat) return;
+    // Beim Wechsel auf die volle Minute ABrunden, damit die neue Tätigkeit nie in der Zukunft beginnt (sonst stünde die Uhr still).
+    // Unter einer Minute (z. B. Fehltipp): nur die Tätigkeit des laufenden Timers ändern, Startzeit bleibt.
+    const end = r.start + Math.floor((Date.now() - r.start) / 60000) * 60000;
+    if (end - r.start >= 60000) state.entries.push({ id: uid(), cat: r.cat, place: r.place, note: r.note, start: r.start, end });
+    state.running = { cat, place: r.place, note: '', start: end - r.start >= 60000 ? end : r.start };
+    sel.cat = cat; sel.note = ''; state.lastCat = cat; editStart = false; noteWarn = false;
+    save(); render(); toast(`Gewechselt zu ${catById(cat).name}`);
   }
 
   // ---------- Views ----------
@@ -716,7 +722,7 @@ input::-webkit-date-and-time-value { text-align: left; }
 
     $view.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { sel.cat = b.dataset.cat; noteWarn = false; render(); });
     $view.querySelectorAll('[data-place]').forEach(b => b.onclick = () => { sel.place = b.dataset.place; render(); });
-    $view.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => { if (b.dataset.switch !== r.cat) switchTo(b.dataset.switch); });
+    $view.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => switchTo(b.dataset.switch));
     const note = document.getElementById('noteIn'); if (note) note.oninput = () => sel.note = note.value;
     $view.querySelectorAll('[data-note]').forEach(b => b.onclick = () => { sel.note = b.dataset.note; noteWarn = false; render(); });
     const sb = document.getElementById('startBtn'); if (sb) sb.onclick = () => startTimer();
@@ -1758,7 +1764,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   const metaOf = () => { const m = {}; for (const k of META_KEYS) m[k] = state[k] === undefined ? null : state[k]; return m; };
   const canon = v => v === null || typeof v !== 'object' ? JSON.stringify(v) : Array.isArray(v) ? '[' + v.map(canon).join(',') + ']' : '{' + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
   const monthKey = t => { const d = new Date(t); return `m-${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
-  let sync = { status: 'off', db: null, base: null, docs: new Set(), synced: new Map(), syncedMeta: null, ready: false, timer: null, busy: false, again: false, last: 0 };
+  let sync = { status: 'off', db: null, base: null, docs: new Set(), synced: new Map(), pending: new Map(), syncedMeta: null, pendingMeta: null, ready: false, timer: null, busy: false, again: false, last: 0 };
   const syncLabel = () => ({ off: 'Nur auf diesem Gerät gespeichert', connecting: 'Abgleich wird verbunden …', on: 'Abgleich aktiv: Handy und Laptop zeigen dieselben Daten', err: 'Abgleich gerade nicht möglich, Daten bleiben auf diesem Gerät' })[sync.status];
   function setSyncStatus(st) { sync.status = st; const el = document.getElementById('syncInfo'); if (el) { el.textContent = syncLabel(); el.previousElementSibling.className = 'syncdot ' + (st === 'on' ? 'on' : st === 'err' ? 'err' : ''); } }
 
@@ -1776,11 +1782,13 @@ input::-webkit-date-and-time-value { text-align: left; }
       for (const [mk, items] of Object.entries(byMonth)) {
         const payload = {}; for (const [id, it] of Object.entries(items)) payload[id] = it.e;
         const ref = sync.db.doc(sync.base + '/' + mk);
+        for (const [id, it] of Object.entries(items)) sync.pending.set(id, it.j);
         if (sync.docs.has(mk)) await ref.update({ entries: payload }); else { await ref.set({ entries: payload }); sync.docs.add(mk); }
-        for (const [id, it] of Object.entries(items)) sync.synced.set(id, it.j);
+        for (const [id, it] of Object.entries(items)) { sync.synced.set(id, it.j); sync.pending.delete(id); }
       }
       const mj = canon(metaOf());
       if (mj !== sync.syncedMeta) {
+        sync.pendingMeta = mj;
         await sync.db.doc(sync.base + '/meta').set({ ...metaOf(), u: Date.now() });
         sync.syncedMeta = mj; sync.docs.add('meta');
       }
@@ -1789,7 +1797,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       setSyncStatus('err');
       if (e && e.code === 'quota_exceeded') toast('Speicherplatz für den Abgleich ist voll.');
     } finally {
-      sync.busy = false;
+      sync.busy = false; sync.pendingMeta = null; sync.pending.clear();
       if (sync.again) { sync.again = false; scheduleSync(); }
     }
   }
@@ -1806,7 +1814,8 @@ input::-webkit-date-and-time-value { text-align: left; }
     let changed = false;
     for (const [id, re] of remote) {
       const rj = re.deleted ? 'deleted' : canon({ ...re, id });
-      const known = sync.synced.get(id);
+      // gerade selbst gesendet: zählt schon als bekannt (sonst würde das Echo lokale Änderungen zurückdrehen)
+      const known = sync.pending.has(id) ? sync.pending.get(id) : sync.synced.get(id);
       const le = local.get(id);
       if (re.deleted) {
         if (le && (!le.u || le.u <= re.u || known !== canon(le))) { local.delete(id); changed = true; }
@@ -1829,7 +1838,10 @@ input::-webkit-date-and-time-value { text-align: left; }
     if (meta) {
       const rm = {}; for (const k of META_KEYS) rm[k] = meta[k] === undefined ? null : meta[k];
       const rmj = canon(rm), lmj = canon(metaOf());
-      if (rmj !== lmj && (sync.syncedMeta === null ? true : rmj !== sync.syncedMeta)) {
+      // Echo der eigenen Sendung oder noch nicht gesendete lokale Änderung (z. B. gerade Tätigkeit gewechselt): lokal behalten
+      const ownEcho = rmj === sync.pendingMeta;
+      const localDirty = sync.syncedMeta !== null && lmj !== sync.syncedMeta;
+      if (!ownEcho && !localDirty && rmj !== lmj && (sync.syncedMeta === null ? true : rmj !== sync.syncedMeta)) {
         for (const k of META_KEYS) state[k] = rm[k] === null ? (k === 'running' ? null : state[k]) : rm[k];
         if (rm.running === null) state.running = null;
         changed = true;
