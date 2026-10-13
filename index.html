@@ -118,7 +118,7 @@ nav.tabs button { min-width: 0; }
 .startbar { display: flex; gap: 10px; align-items: stretch; }
 .startbar .seg { align-self: stretch; flex: none; }
 .startbar .seg button { padding: 8px 12px; }
-.startbar #startBtn { flex: 1; min-width: 0; }
+.startbar #startBtn, .stopbar #stopBtn { flex: 1; min-width: 0; }
 .longrun { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
 .longrun p { margin: 0; }
 @media (max-width: 719px) { .startbar { position: sticky; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); z-index: 5; background: var(--surface); padding-block: 8px; margin-block: -8px; } .startbar #startBtn { box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 22%, transparent); } }
@@ -130,6 +130,13 @@ nav.tabs button { min-width: 0; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 140px; }
+/* In Spalten (Dialoge, Karten) nicht in die Höhe ziehen, nur in Zeilen nebeneinander */
+.sheet > .field, .panel > .field, .timer > .field { flex: 0 0 auto; }
+@media (max-width: 380px) {
+  .seg button { padding: 8px 11px; }
+  .weeks td, .weeks th { padding: 8px 3px; font-size: .86rem; }
+  .weeks th { font-size: .7rem; letter-spacing: .03em; }
+}
 input[type=text], input[type=date], input[type=time], select { width: 100%; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); min-height: 44px; }
 
 .btn { border: 1px solid var(--line); background: var(--surface); padding: 10px 16px; border-radius: 10px; font-weight: 600; min-height: 44px; }
@@ -199,7 +206,7 @@ input[type=text], input[type=date], input[type=time], select { width: 100%; min-
 .weeks { width: 100%; border-collapse: collapse; font-size: .95rem; }
 .weeks td, .weeks th { white-space: nowrap; padding: 8px 4px; border-bottom: 1px solid var(--line); text-align: left; }
 .weeks td:last-child, .weeks th:last-child { text-align: right; }
-.weeks .range { display: block; font-size: .8rem; color: var(--muted); }
+.weeks .range { display: block; font-size: .8rem; color: var(--muted); white-space: normal; }
 .notechips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .support { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .support p { margin: 0; color: var(--muted); line-height: 1.45; }
@@ -268,7 +275,7 @@ input::-webkit-date-and-time-value { text-align: left; }
 .remind p { margin: 0; }
 .toast.act { display: flex; align-items: center; white-space: nowrap; }
 .toast button { margin-left: 14px; background: none; border: 0; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; padding: 6px 2px; cursor: pointer; }
-.toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; z-index: 30; font-weight: 600; max-width: calc(100% - 32px); }
+.toast { position: fixed; left: 50%; top: calc(12px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; z-index: 30; font-weight: 600; max-width: calc(100% - 32px); }
 </style>
 
 <div class="app" lang="de">
@@ -380,8 +387,8 @@ input::-webkit-date-and-time-value { text-align: left; }
   function tzAdd(t, s0, e0) {
     t.total += e0 - s0;
     for (let d = addDays(startOfDay(s0), -1); d < e0; d = addDays(d, 1)) {
-      for (const z of TZ) t.by[z.id] += Math.max(0, Math.min(e0, d + z.b * 3600000) - Math.max(s0, d + z.a * 3600000));
-      for (const [a, b] of coreFor(d)) t.core += Math.max(0, Math.min(e0, d + b * 60000) - Math.max(s0, d + a * 60000));
+      for (const z of TZ) t.by[z.id] += Math.max(0, Math.min(e0, atH(d, z.b)) - Math.max(s0, atH(d, z.a)));
+      for (const [a, b] of coreFor(d)) t.core += Math.max(0, Math.min(e0, atH(d, b / 60)) - Math.max(s0, atH(d, a / 60)));
     }
     return t;
   }
@@ -394,7 +401,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   // Arbeitsschutz (Orientierung am Arbeitszeitgesetz): Höchstarbeitszeit, Pausen, Ruhezeit
   const MIN = 60000;
   function dayWork(day) {
-    const list = state.entries.filter(x => x.start >= day && x.start < day + DAY).sort((a, b) => a.start - b.start);
+    const list = state.entries.filter(x => x.start >= day && x.start < addDays(day, 1)).sort((a, b) => a.start - b.start);
     const blocks = []; // überlappende Einträge zusammenfassen
     for (const x of list) { const l = blocks[blocks.length - 1]; if (l && x.start <= l.b) l.b = Math.max(l.b, x.end); else blocks.push({ a: x.start, b: x.end }); }
     let work = 0, pause = 0, run = 0, longest = 0;
@@ -509,6 +516,11 @@ input::-webkit-date-and-time-value { text-align: left; }
     { v: 22, items: [
       'Notiz bei laufender Zeit: Unter der Uhr steht jetzt immer ein Notizfeld. Nach einem Wechsel läuft die Zeit sofort weiter, und du kannst die Notiz nebenher eintragen. Bei „Sonstiges“ ist das Feld gleich zum Tippen bereit.',
     ] },
+    { v: 23, items: [
+      'Der Stopp-Knopf bleibt beim Scrollen unten sichtbar.',
+      'Eintrag korrigieren: Datum und Uhrzeiten stehen jetzt oben. Liegt „Bis“ vor „Von“, fragt die App nach, statt still einen Eintrag bis zum nächsten Morgen zu speichern.',
+      'Mehrere kleine Fehler behoben, unter anderem rechnet die App am Tag der Zeitumstellung (25.10.) jetzt richtig.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -531,6 +543,10 @@ input::-webkit-date-and-time-value { text-align: left; }
   const pad = n => String(n).padStart(2, '0');
   const startOfDay = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
   const addDays = (t, n) => { const d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); };
+  // Uhrzeit h (Stunden, darf über 24 gehen) am Tag d – richtig auch an Tagen der Zeitumstellung (23 oder 25 Stunden)
+  const atH = (d, h) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setMinutes(Math.round(h * 60)); return x.getTime(); };
+  // Zeitpunkt t als Uhrzeit in Stunden ab Mitternacht des Tages d (Folgetag = +24)
+  const wallH = (d, t) => { const x = new Date(t); return Math.round((startOfDay(t) - d) / 86400000) * 24 + x.getHours() + x.getMinutes() / 60 + x.getSeconds() / 3600; };
   const startOfWeek = t => { const d = new Date(startOfDay(t)); const wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return d.getTime(); };
   const isoWeek = t => {
     const d = new Date(startOfDay(t)); d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
@@ -621,8 +637,9 @@ input::-webkit-date-and-time-value { text-align: left; }
     if (!startAt) {
       // Direkt nach dem Stoppen: Das letzte Ende kann durchs Aufrunden bis zu 30 s in der Zukunft liegen.
       // Dann den letzten Eintrag auf die volle Minute abrunden und genau dort weitermachen, damit sich nichts überschneidet.
-      const last = state.entries.reduce((a, x) => (!a || x.end > a.end ? x : a), null);
-      if (last && last.end > start) {
+      // Nur dieser Fall: Eintrag hat schon begonnen und endet höchstens 1 Minute in der Zukunft (vorab eingetragene Termine bleiben unberührt)
+      const last = state.entries.find(x => x.start < start && x.end > start && x.end - start <= 60000);
+      if (last) {
         const cut = last.start + Math.floor((start - last.start) / 60000) * 60000;
         if (cut - last.start >= 60000) last.end = cut;
         start = last.end;
@@ -695,9 +712,9 @@ input::-webkit-date-and-time-value { text-align: left; }
   function renderErfassen() {
     const r = state.running;
     const today = startOfDay(Date.now());
-    const todaySum = sumRange(today, today + DAY).total;
+    const todaySum = sumRange(today, addDays(today, 1)).total;
     const ws = startOfWeek(Date.now());
-    const weekSum = sumRange(ws, ws + 7 * DAY).total;
+    const weekSum = sumRange(ws, addDays(ws, 7)).total;
     let html = `<div class="wtop" id="weekBar">${weekBarHTML(ws, weekSum)}</div>`;
     // Läuft der Timer ungewöhnlich lange oder seit gestern, nachfragen
     if (r && (Date.now() - r.start > LONG_RUN || startOfDay(r.start) < today) && !(r.okUntil && Date.now() < r.okUntil)) {
@@ -715,8 +732,8 @@ input::-webkit-date-and-time-value { text-align: left; }
         ${editStart ? `<div class="startedit"><div class="field" style="flex:0 1 130px"><label class="label" for="startIn">Begonnen um</label><input type="time" id="startIn" value="${fmtTime(r.start)}"></div><button class="btn primary" id="startOk">Übernehmen</button><button class="btn ghost" id="startNo">Abbrechen</button></div>` : ''}
         <div class="clock" id="clock">${fmtClock(Date.now() - r.start)}</div>
         ${fresh && !editStart ? `<div class="earlier" id="earlierRow"><span>Früher begonnen?</span>${[1, 3, 5].map(m => `<button class="btn" data-earlier="${m}" aria-label="${m} Minuten früher">${m} Min.</button>`).join('')}</div>` : ''}
-        ${r.note && !noteEdit ? `<button type="button" class="notedone" id="noteEditBtn"><span>Notiz: <b>${esc(r.note)}</b></span><span class="edit">ändern</span></button>` : `<div class="field" style="flex:none"><label class="label" for="runNote">Notiz ${r.cat === 'sonstiges' ? '(worum geht es?)' : '(optional)'}</label><div class="noterow"><input type="text" id="runNote" enterkeyhint="done" placeholder="${r.cat === 'sonstiges' ? 'Worum geht es?' : 'z. B. 9b Mathe, Klausur Q1'}" value="${esc(r.note || '')}"><button type="button" class="btn primary" id="runNoteOk" aria-label="Notiz übernehmen">✓</button></div>${noteChipsHTML(r.cat, 'data-runnote')}</div>`}
-        <button class="btn big stop" id="stopBtn">Stopp</button>
+        ${r.note && !noteEdit ? `<button type="button" class="notedone" id="noteEditBtn"><span>Notiz: <b>${esc(r.note)}</b></span><span class="edit">ändern</span></button>` : `<div class="field" style="flex:none"><label class="label" for="runNote">Notiz ${r.cat === 'sonstiges' ? '(worum geht es?)' : '(optional)'}</label><div class="noterow"><input type="text" id="runNote" enterkeyhint="done" placeholder="${r.cat === 'sonstiges' ? 'Worum geht es?' : 'z. B. 9b Mathe'}" value="${esc(r.note || '')}"><button type="button" class="btn primary" id="runNoteOk" aria-label="Notiz übernehmen">✓</button></div>${noteChipsHTML(r.cat, 'data-runnote')}</div>`}
+        <div class="startbar stopbar"><button class="btn big stop" id="stopBtn">Stopp</button></div>
         <span class="label">Direkt wechseln zu</span>
         ${chipsHTML(r.cat, 'data-switch')}`;
     } else {
@@ -772,7 +789,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     const sok = document.getElementById('startOk'); if (sok) sok.onclick = () => {
       const v = document.getElementById('startIn').value; if (!v) return;
       const [h, m] = v.split(':').map(Number), d = new Date(state.running.start); d.setHours(h, m, 0, 0);
-      let t = d.getTime(); if (t > Date.now()) t -= DAY;
+      let t = d.getTime(); if (t > Date.now()) t = addDays(t, -1);
       editStart = false; setStart(t);
     };
     const lo = document.getElementById('lrOk'); if (lo) lo.onclick = () => { state.running.okUntil = Date.now() + 4 * 3600000; save(); render(); };
@@ -780,7 +797,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       const v = document.getElementById('lrEnd').value, err = document.getElementById('lrErr');
       if (!v) { err.textContent = 'Bitte eine Uhrzeit eingeben.'; err.hidden = false; return; }
       const [h, m] = v.split(':').map(Number), d = new Date(r.start); d.setHours(h, m, 0, 0);
-      let end = d.getTime(); if (end <= r.start) end += DAY;
+      let end = d.getTime(); if (end <= r.start) end = addDays(end, 1);
       if (end > Date.now()) { err.textContent = 'Das Ende liegt in der Zukunft. Bitte eine frühere Uhrzeit wählen.'; err.hidden = false; return; }
       if (end - r.start > 16 * 3600000) { err.textContent = 'Höchstens 16 Stunden. Bitte die Uhrzeit prüfen.'; err.hidden = false; return; }
       state.entries.push({ id: uid(), cat: r.cat, place: r.place, note: r.note, start: r.start, end });
@@ -797,7 +814,7 @@ input::-webkit-date-and-time-value { text-align: left; }
 
   function entryHTML(e) {
     const c = catById(e.cat);
-    return `<button class="entry" data-entry="${e.id}"><span class="bar" style="background:${c.color}"></span>
+    return `<button class="entry" data-entry="${esc(e.id)}"><span class="bar" style="background:${c.color}"></span>
       <span class="main"><span>${c.name}<span class="badge">${PLACES[e.place]}</span></span>
       <span class="sub">${fmtTime(e.start)}–${fmtTime(e.end)}${e.note ? ' · ' + esc(e.note) : ''}</span></span>
       <span class="dur">${fmtDur(e.end - e.start)}</span></button>`;
@@ -857,7 +874,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       // Blöcke zur echten Uhrzeit, wie die Kernarbeitszeit; Arbeit vor 6 Uhr erscheint oben im Nachtbereich
       const blocks = [];
       for (const e of allEntries().filter(x => x.start >= d && x.start < addDays(d, 1)).sort((x, y) => x.start - y.start)) {
-        const a = (e.start - d) / H, b = Math.min((e.end - d) / H, 30), c = catById(e.cat).color;
+        const a = wallH(d, e.start), b = Math.min(wallH(d, e.end), 30), c = catById(e.cat).color;
         for (const [pa, pb] of [[a + 24, Math.min(b, 6) + 24], [Math.max(a, 6), b]])
           if (pb > pa) blocks.push(`<i class="blk" style="bottom:${pos(pa)}%;height:${(pb - pa) / 24 * 100}%;background:${c}"></i>`);
       }
@@ -1087,7 +1104,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       ${period === 'monat' ? `<div class="row"><button class="btn primary" id="pdfMonth">Monatsnachweis als PDF</button></div><p class="hint">Eine Seite mit Ist, Soll und Saldo, den Wochen, Tätigkeiten und Tageszeiten, z. B. zum Ausdrucken oder Abgeben.</p>` : ''}
       <p class="hint">Excel enthält alle Einträge, Wochensummen mit Soll und Saldo sowie die Summen nach Tätigkeit.</p>
       <div class="row"><button class="btn ${period === 'monat' ? '' : 'primary'}" id="xlsPeriod">${period === 'tag' ? 'Diesen Tag' : period === 'woche' ? 'Diese Woche' : period === 'monat' ? 'Diesen Monat' : 'Dieses Schuljahr'} exportieren</button><button class="btn" id="xlsAll">Alles exportieren</button></div>
-      <div class="row" style="justify-content:space-between"><p class="hint" style="flex:1 1 200px">Soll: ${fmtNum(st.yearly)} h im Jahr${st.pct !== 100 ? ` bei ${fmtNum(st.pct)} %` : ''} auf ${fmtNum(st.weeks)} Unterrichtswochen, also ${fmtNum(weeklySoll() / 3600000)} h pro Unterrichtswoche (${fmtDur(dailySoll())} h pro Tag).</p><button class="btn ghost" id="openSettings2">Soll ändern</button></div>
+      <div class="row" style="justify-content:space-between"><p class="hint" style="flex:1 1 200px">Soll: ${fmtNum(st.yearly)} h im Jahr${st.pct !== 100 ? ` bei ${fmtNum(st.pct)} %` : ''} auf ${fmtNum(st.weeks)} Unterrichtswochen, also ${fmtDur(weeklySoll())} h pro Unterrichtswoche (${fmtDur(dailySoll())} h pro Tag).</p><button class="btn ghost" id="openSettings2">Soll ändern</button></div>
     </section>`;
     $view.innerHTML = html;
     $view.querySelectorAll('[data-period]').forEach(b => b.onclick = () => { period = b.dataset.period; render(); });
@@ -1175,9 +1192,9 @@ input::-webkit-date-and-time-value { text-align: left; }
         <span class="hint">Bei Teilzeit: deine Unterrichtsstunden geteilt durch das volle Deputat, z. B. 20 von 25,5 = 78 %.</span></div>
       <div class="row">
         <div class="field"><label class="label" for="stYearStart">Schuljahr beginnt am</label>
-          <input type="text" inputmode="numeric" id="stYearStart" value="${yd}.${ym}." placeholder="01.08."></div>
+          <input type="text" inputmode="numeric" id="stYearStart" value="${esc(yd + '.' + ym + '.')}" placeholder="01.08."></div>
         <div class="field"><label class="label" for="stSince">Soll zählt ab</label>
-          <input type="date" id="stSince" value="${st.since || keyOf(sinceTs())}"></div>
+          <input type="date" id="stSince" value="${esc(st.since || keyOf(sinceTs()))}"></div>
       </div>
       <p class="hint">Tage vor „Soll zählt ab“ erzeugen keine Minusstunden.</p>
       <p class="hint" id="stPreview"></p>
@@ -1198,10 +1215,11 @@ input::-webkit-date-and-time-value { text-align: left; }
       <p class="warn" id="stErr" hidden></p>
       <div class="actions"><div><button class="btn" id="stCancel">Abbrechen</button><button class="btn primary" id="stSave">Speichern</button></div></div>
     </div></div>`;
-    const num = id => parseFloat(document.getElementById(id).value.replace(/\./g, '').replace(',', '.'));
+    // „1.805“ = Tausenderpunkt, „40,5“ und „40.5“ = Dezimalzahl
+    const num = id => { const v = document.getElementById(id).value.trim().replace(/\s/g, ''); return parseFloat(v.includes(',') ? v.replace(/\./g, '').replace(',', '.') : /^\d{1,3}(\.\d{3})+$/.test(v) ? v.replace(/\./g, '') : v); };
     const preview = () => {
       const y = num('stYearly'), w = num('stWeeks'), p = num('stPct');
-      document.getElementById('stPreview').textContent = (y > 0 && w > 0 && p > 0) ? `Ergibt ${fmtNum(y * p / 100 / w)} h pro Unterrichtswoche, ${fmtDur(y * p / 100 / w / 5 * 3600000)} h pro Tag (Mo–Fr).` : '';
+      document.getElementById('stPreview').textContent = (y > 0 && w > 0 && p > 0) ? `Ergibt ${fmtDur(y * p / 100 / w * 3600000)} h pro Unterrichtswoche, ${fmtDur(y * p / 100 / w / 5 * 3600000)} h pro Tag (Mo–Fr).` : '';
     };
     ['stYearly', 'stWeeks', 'stPct'].forEach(id => document.getElementById(id).oninput = preview); preview();
     const cats = new Set(activeCats().map(c => c.id));
@@ -1400,7 +1418,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     // Fuß
     if (hasCore) { const dn = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']; const kz = [1, 2, 3, 4, 5, 6, 0].filter(d => (state.coreHours[d] || []).length).map(d => `${dn[d]} ${state.coreHours[d].map(([a, b]) => `${hm(a)}–${hm(b)}`).join(', ')}`).join(' · ');
       txt(`Deine Kernarbeitszeit: ${kz}`, L, 263, { s: 7.5, c: MUTED }); }
-    txt(`Soll: ${fmtNum(st.yearly)} h im Jahr${st.pct !== 100 ? ` bei ${fmtNum(st.pct)} %` : ''}, verteilt auf ${fmtNum(st.weeks)} Unterrichtswochen (${fmtNum(weeklySoll() / 3600000)} h pro Woche). Ferienwochen und freie Tage haben kein Soll.`, L, 267, { s: 7.5, c: MUTED });
+    txt(`Soll: ${fmtNum(st.yearly)} h im Jahr${st.pct !== 100 ? ` bei ${fmtNum(st.pct)} %` : ''}, verteilt auf ${fmtNum(st.weeks)} Unterrichtswochen (${fmtDur(weeklySoll())} h pro Woche). Ferienwochen und freie Tage haben kein Soll.`, L, 267, { s: 7.5, c: MUTED });
     doc.setDrawColor(...MUTED); doc.setLineWidth(.25); doc.line(L, 281, L + 70, 281); doc.line(R - 70, 281, R, 281);
     txt('Ort, Datum', L, 285, { s: 8, c: MUTED }); txt('Unterschrift', R - 70, 285, { s: 8, c: MUTED });
     txt(`Erstellt mit Lehrerzeit am ${fmtShort(Date.now())}${new Date().getFullYear()}`, R, 291, { s: 7, c: MUTED, a: 'right' });
@@ -1511,8 +1529,8 @@ input::-webkit-date-and-time-value { text-align: left; }
   // ---------- Editor ----------
   // Tag aus der Wochengrafik: Einträge ansehen, korrigieren, nachtragen
   function openDay(day) {
-    const list = state.entries.filter(x => x.end > day && x.start < day + DAY).sort((a, b) => a.start - b.start);
-    const tot = list.reduce((s, x) => s + Math.min(x.end, day + DAY) - Math.max(x.start, day), 0);
+    const dEnd = addDays(day, 1), list = state.entries.filter(x => x.end > day && x.start < dEnd).sort((a, b) => a.start - b.start);
+    const tot = list.reduce((s, x) => s + Math.min(x.end, dEnd) - Math.max(x.start, day), 0);
     const gaps = dayGaps(day);
     $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dyTitle">
       <div class="day-head"><h2 id="dyTitle">${fmtDay(day)}</h2><span class="num">${fmtDur(tot)} h</span></div>
@@ -1533,36 +1551,37 @@ input::-webkit-date-and-time-value { text-align: left; }
     const now = Date.now();
     // Nachtrag: hinter dem letzten Eintrag des Tages weitermachen (sonst 7:30), eine Stunde vorschlagen
     const suggest = d => {
-      const last = Math.max(0, ...state.entries.filter(x => x.end > d && x.end <= d + DAY).map(x => x.end));
-      const a = last || d + 7.5 * 3600000; return [a, Math.min(a + 3600000, d + DAY - 60000)];
+      const dEnd = addDays(d, 1), last = Math.max(0, ...state.entries.filter(x => x.end > d && x.end <= dEnd).map(x => x.end));
+      const a = last || atH(d, 7.5); return [a, Math.min(a + 3600000, dEnd - 60000)];
     };
     let st = now - 3600000, en = now;
     if (isNew && day != null) [st, en] = suggest(day);
     else if (isNew && state.entries.some(x => x.end > startOfDay(now) && x.end <= now)) [st, en] = suggest(startOfDay(now));
     const e = entry ? { ...entry } : { cat: sel.cat, place: placeFor(st), note: '', start: st, end: en };
-    let cat = catById(e.cat).id, place = e.place, placeSet = !isNew, confirmDel = false, noteAsked = false, overlapKey = null;
+    let cat = catById(e.cat).id, place = e.place, placeSet = !isNew, confirmDel = false, noteAsked = false, overlapKey = null, nightKey = null, catOpen = isNew;
     const dayTs = () => { const d = e._d || fmtDateInput(e.start); const [y, mo, da] = d.split('-').map(Number); return new Date(y, mo - 1, da).getTime(); };
     const ttDay = () => ttFor(dayTs());
     function draw(err) {
       $modal.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="edTitle">
         <h2 id="edTitle">${isNew ? 'Zeit nachtragen' : 'Eintrag korrigieren'}</h2>
-        <span class="label">Tätigkeit</span>${chipsHTML(cat, 'data-ecat')}
-        <span class="label">Ort</span>${placeHTML(place, 'data-eplace')}
         <div class="row">
           <div class="field"><label class="label" for="edDate">Datum</label><input type="date" id="edDate" value="${fmtDateInput(e.start)}"></div>
           <div class="field" style="flex-basis:100px"><label class="label" for="edFrom">Von</label><input type="time" id="edFrom" value="${fmtTime(e.start)}"></div>
           <div class="field" style="flex-basis:100px"><label class="label" for="edTo">Bis</label><input type="time" id="edTo" value="${fmtTime(e.end)}"></div>
         </div>
+        <span class="label">Tätigkeit</span>${catOpen ? chipsHTML(cat, 'data-ecat') : `<button type="button" class="notedone" id="edCatOpen"><span><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;background:${catById(cat).color}"></span><b>${catById(cat).name}</b></span><span class="edit">ändern</span></button>`}
+        <span class="label">Ort</span>${placeHTML(place, 'data-eplace')}
         ${isNew && ttDay().length ? `<div class="ttbox"><button class="btn" id="edTT">Unterricht laut Stundenplan einfügen</button><span class="hint">${ttText(ttDay())} · ${PLACES.schule}</span></div>` : ''}
         <div class="field"><label class="label" for="edNote">Notiz</label><input type="text" id="edNote" value="${esc(e.note)}">${noteChipsHTML(cat, 'data-enote')}</div>
         ${err ? `<p class="warn">${err}</p>` : ''}
-        ${confirmDel ? `<p class="warn">Diesen Eintrag wirklich löschen? Das lässt sich nicht rückgängig machen.</p>` : ''}
+        ${confirmDel ? `<p class="warn">Diesen Eintrag wirklich löschen?</p>` : ''}
         <div class="actions">
           ${isNew ? '' : confirmDel ? `<button class="btn danger" id="edDelYes">Ja, löschen</button>` : `<button class="btn danger" id="edDel">Löschen</button>`}
           <div><button class="btn" id="edCancel">Abbrechen</button><button class="btn primary" id="edSave">Speichern</button></div>
         </div></div></div>`;
       const keep = () => { e.note = document.getElementById('edNote').value; const d = document.getElementById('edDate').value, f = document.getElementById('edFrom').value, t = document.getElementById('edTo').value; e._d = d; e._f = f; e._t = t; };
       $modal.querySelectorAll('[data-ecat]').forEach(b => b.onclick = () => { keep(); cat = b.dataset.ecat; redraw(); });
+      const eco = document.getElementById('edCatOpen'); if (eco) eco.onclick = () => { keep(); catOpen = true; redraw(); };
       $modal.querySelectorAll('[data-enote]').forEach(b => b.onclick = () => { document.getElementById('edNote').value = b.dataset.enote; });
       $modal.querySelectorAll('[data-eplace]').forEach(b => b.onclick = () => { keep(); place = b.dataset.eplace; placeSet = true; redraw(); });
       document.getElementById('edCancel').onclick = close;
@@ -1574,9 +1593,9 @@ input::-webkit-date-and-time-value { text-align: left; }
       };
       const ttb = document.getElementById('edTT'); if (ttb) ttb.onclick = () => {
         keep(); const day = dayTs();
-        const blocks = ttDay().filter(([a, b]) => !state.entries.some(x => x.start < day + b * 60000 && x.end > day + a * 60000));
+        const blocks = ttDay().filter(([a, b]) => !state.entries.some(x => x.start < atH(day, b / 60) && x.end > atH(day, a / 60)));
         if (!blocks.length) return draw('Zu diesen Zeiten ist an dem Tag schon etwas erfasst. Bitte die Einträge unter „Einträge“ prüfen.');
-        for (const [a, b] of blocks) state.entries.push({ id: uid(), cat: 'unterricht', place: 'schule', note: '', start: day + a * 60000, end: day + b * 60000 });
+        for (const [a, b] of blocks) state.entries.push({ id: uid(), cat: 'unterricht', place: 'schule', note: '', start: atH(day, a / 60), end: atH(day, b / 60) });
         save(); render();
         const skipped = ttDay().length - blocks.length;
         toast(`${blocks.length} ${blocks.length > 1 ? 'Unterrichtsblöcke' : 'Unterrichtsblock'} eingefügt${skipped ? `, ${skipped} übersprungen (schon belegt)` : ''}. Antippen zum Ändern.`);
@@ -1594,10 +1613,18 @@ input::-webkit-date-and-time-value { text-align: left; }
         const [y, mo, da] = d.split('-').map(Number), [fh, fm] = f.split(':').map(Number), [th, tm] = t.split(':').map(Number);
         const start = new Date(y, mo - 1, da, fh, fm).getTime();
         let end = new Date(y, mo - 1, da, th, tm).getTime();
-        if (end <= start) end += DAY; // über Mitternacht
+        if (end <= start) {
+          end = addDays(end, 1); // über Mitternacht
+          // Längere Nacht-Einträge sind meist ein Tippfehler bei „Bis“: einmal nachfragen
+          if (end - start > 6 * 3600000 && end - start <= 16 * 3600000 && nightKey !== `${start}-${end}`) {
+            nightKey = `${start}-${end}`; e.note = document.getElementById('edNote').value; e._d = d; e._f = f; e._t = t;
+            return draw(`„Bis“ liegt vor „Von“. Der Eintrag würde also erst am nächsten Tag um ${fmtTime(end)} enden (${fmtDur(end - start)} h). Bitte „Bis“ prüfen oder nochmal „Speichern“ tippen, wenn das so stimmt.`);
+          }
+        }
         if (end - start > 16 * 3600000) return draw('Ein Eintrag darf höchstens 16 Stunden lang sein. Bitte Beginn und Ende prüfen.');
         if (cat === 'sonstiges' && !document.getElementById('edNote').value.trim() && !noteAsked) { noteAsked = true; e.note = ''; e._d = d; e._f = f; e._t = t; return draw('Bei „Sonstiges“ bitte kurz notieren, worum es geht. Nochmal „Speichern“ tippen, um ohne Notiz zu speichern.'); }
-        const clash = state.entries.filter(x => x !== entry && x.start < end && x.end > start).sort((a, b) => a.start - b.start);
+        const r = state.running, live = r ? [{ cat: r.cat, start: r.start, end: Math.max(Date.now(), r.start + 60000) }] : [];
+        const clash = [...state.entries.filter(x => x !== entry), ...live].filter(x => x.start < end && x.end > start).sort((a, b) => a.start - b.start);
         if (clash.length && overlapKey !== `${start}-${end}`) {
           overlapKey = `${start}-${end}`; e.note = document.getElementById('edNote').value; e._d = d; e._f = f; e._t = t;
           const names = clash.slice(0, 2).map(x => `${plain(catById(x.cat).raw || catById(x.cat).name)} ${fmtTime(x.start)}–${fmtTime(x.end)}`).join(' und ') + (clash.length > 2 ? ` und ${clash.length - 2} weitere` : '');
@@ -1615,7 +1642,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
   // Nach dem Nachtragen: Lücken zwischen Einträgen eines Tages nacheinander abfragen
   function dayGaps(day) {
-    const list = state.entries.filter(x => x.end > day && x.start < day + DAY).sort((a, b) => a.start - b.start);
+    const list = state.entries.filter(x => x.start >= day && x.start < addDays(day, 1)).sort((a, b) => a.start - b.start);
     const done = (state.gapsSkipped && state.gapsSkipped[keyOf(day)]) || [], gaps = [];
     let prev = null;
     for (const x of list) {
@@ -1661,7 +1688,7 @@ input::-webkit-date-and-time-value { text-align: left; }
 
   // ---------- Demo data ----------
   function loadDemo() {
-    const ws = startOfWeek(Date.now()) - 7 * DAY; // letzte Woche, damit nichts mit heute kollidiert
+    const ws = addDays(startOfWeek(Date.now()), -7); // letzte Woche, damit nichts mit heute kollidiert
     const at = (day, h, m) => { const d = new Date(addDays(ws, day)); d.setHours(h, m, 0, 0); return d.getTime(); };
     const plan = [
       [0, 7, 45, 13, 5, 'unterricht', 'schule', '6 Stunden'], [0, 15, 0, 17, 30, 'vorbereitung', 'zuhause', ''],
@@ -1687,8 +1714,8 @@ input::-webkit-date-and-time-value { text-align: left; }
     if (d > Date.now()) return 'fut';
     if (d < restData.first) return 'none';
     if (d === startOfDay(Date.now())) return 'today';
-    if (workIn(d + 6 * H, d + 30 * H) < MIN_WORK) return 'free';
-    return workIn(d + lim, d + 30 * H) < MIN_WORK ? 'eve' : 'late';
+    if (workIn(atH(d, 6), atH(d, 30)) < MIN_WORK) return 'free';
+    return workIn(atH(d, lim / H), atH(d, 30)) < MIN_WORK ? 'eve' : 'late';
   }
   function renderAchtsam() {
     { let first = Infinity; for (const e of state.entries) if (e.start < first) first = e.start;
@@ -1819,7 +1846,13 @@ input::-webkit-date-and-time-value { text-align: left; }
       // Einträge je Monat sammeln
       const byMonth = {};
       const local = new Map(state.entries.map(e => [e.id, e]));
-      for (const e of state.entries) { const j = canon(e); if (sync.synced.get(e.id) !== j) (byMonth[monthKey(e.start)] = byMonth[monthKey(e.start)] || {})[e.id] = { e, j }; }
+      for (const e of state.entries) {
+        const j = canon(e), old = sync.synced.get(e.id); if (old === j) continue;
+        const mk = monthKey(e.start); (byMonth[mk] = byMonth[mk] || {})[e.id] = { e, j };
+        // In einen anderen Monat verschoben: alte Kopie als „verschoben“ markieren, sonst taucht sie beim Abgleich wieder auf
+        let omk = null; try { if (old && old !== 'deleted') omk = monthKey(JSON.parse(old).start); } catch (x) {}
+        if (omk && omk !== mk) (byMonth[omk] = byMonth[omk] || {})[e.id] = { e: { deleted: true, moved: true, u: e.u || Date.now() }, j };
+      }
       for (const [id, j] of sync.synced) if (!local.has(id) && j !== 'deleted') { let mk; try { mk = monthKey(JSON.parse(j).start); } catch (x) { continue; } (byMonth[mk] = byMonth[mk] || {})[id] = { e: { deleted: true, u: Date.now() }, j: 'deleted' }; }
       for (const [mk, items] of Object.entries(byMonth)) {
         const payload = {}; for (const [id, it] of Object.entries(items)) payload[id] = it.e;
@@ -1849,7 +1882,11 @@ input::-webkit-date-and-time-value { text-align: left; }
       docs.add(d.id);
       const body = d.data() || {};
       if (d.id === 'meta') meta = body;
-      else if (d.id.startsWith('m-') && body.entries) for (const [id, e] of Object.entries(body.entries)) remote.set(id, e);
+      else if (d.id.startsWith('m-') && body.entries) for (const [id, e] of Object.entries(body.entries)) {
+        // Steht ein Eintrag in mehreren Monaten (nach dem Verschieben), gilt die echte Kopie, nicht die Markierung „verschoben“
+        const had = remote.get(id);
+        if (!had || (had.moved && !e.moved) || (!!had.moved === !!e.moved && (e.u || 0) > (had.u || 0))) remote.set(id, e);
+      }
     }
     sync.docs = docs;
     const local = new Map(state.entries.map(e => [e.id, e]));
@@ -1916,17 +1953,25 @@ input::-webkit-date-and-time-value { text-align: left; }
     let data; try { data = JSON.parse(text); } catch (e) { toast('Die Datei ist keine Lehrerzeit-Sicherung.'); return; }
     if (!data || data.app !== 'lehrerzeit' || !Array.isArray(data.entries)) { toast('Die Datei ist keine Lehrerzeit-Sicherung.'); return; }
     const local = new Map(state.entries.map(e => [e.id, e])); let added = 0, updated = 0;
+    // Nur saubere Einträge übernehmen (schützt vor beschädigten oder manipulierten Dateien)
+    const okId = v => typeof v === 'string' && /^[\w-]{1,64}$/.test(v), okNum = v => typeof v === 'number' && isFinite(v);
     for (const e of data.entries) {
-      if (!e || !e.id || !e.start || !e.end) continue;
+      if (!e || !okId(e.id) || !okNum(e.start) || !okNum(e.end) || e.end <= e.start || !okId(e.cat) || !PLACES[e.place] || (e.note != null && typeof e.note !== 'string')) continue;
       const le = local.get(e.id);
       if (!le) { local.set(e.id, e); added++; } else if ((e.u || 0) > (le.u || 0)) { local.set(e.id, e); updated++; }
     }
     state.entries = [...local.values()];
     for (const k of ['offDays', 'holidayWeeks']) if (data[k]) state[k] = Object.assign({}, data[k], state[k] || {});
-    if (data.settings && !state.settings) state.settings = data.settings;
+    if (data.settings && !state.settings && typeof data.settings === 'object') {
+      const st = { ...data.settings };
+      if (st.yearStart != null && !/^\d\d-\d\d$/.test(st.yearStart)) delete st.yearStart;
+      if (st.since != null && !/^\d{4}-\d\d-\d\d$/.test(st.since)) delete st.since;
+      if (st.name != null && typeof st.name !== 'string') delete st.name;
+      state.settings = st;
+    }
     if (data.timetable && !state.timetable) state.timetable = data.timetable;
     if (data.coreHours && !state.coreHours) state.coreHours = data.coreHours;
-    if (Array.isArray(data.customCats)) { const have = new Set(ownCats().map(c => c.id)); state.customCats = [...ownCats(), ...data.customCats.filter(c => c && c.id && !have.has(c.id))]; }
+    if (Array.isArray(data.customCats)) { const have = new Set(ownCats().map(c => c.id)); state.customCats = [...ownCats(), ...data.customCats.filter(c => c && /^[\w-]{1,64}$/.test(c.id) && typeof c.name === 'string' && (c.color == null || Number.isInteger(c.color)) && !have.has(c.id))]; }
     const exported = Date.parse(data.exportedAt); if (exported) state.lastBackup = Math.max(state.lastBackup || 0, exported);
     savedBodies = new Map(state.entries.map(e => [e.id, bodyOf(e)]));
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
@@ -2004,8 +2049,8 @@ input::-webkit-date-and-time-value { text-align: left; }
     if (view === 'erfassen' && Date.now() % 60000 < 1000) {
       const t = startOfDay(Date.now()), ws = startOfWeek(Date.now());
       const a = document.getElementById('sumToday'), b = document.getElementById('sumWeek');
-      if (a) a.textContent = fmtDur(sumRange(t, t + DAY).total) + ' h';
-      const wsum = sumRange(ws, ws + 7 * DAY).total;
+      if (a) a.textContent = fmtDur(sumRange(t, addDays(t, 1)).total) + ' h';
+      const wsum = sumRange(ws, addDays(ws, 7)).total;
       if (b) b.textContent = fmtDur(wsum) + ' h';
       const wb = document.getElementById('weekBar'); if (wb) wb.innerHTML = weekBarHTML(ws, wsum);
     }
