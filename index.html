@@ -101,6 +101,12 @@ nav.tabs button { min-width: 0; }
 .rd.today { border: 2px dashed var(--muted); }
 .rd.fut, .rd.none { border: 1px dashed var(--line); }
 .resttiles b { white-space: nowrap; }
+.sickhead { display: flex; align-items: baseline; gap: 12px; }
+.sickhead .num { font-size: 2.4rem; line-height: 1; font-family: var(--font-display); }
+.sickhead small { display: block; color: var(--muted); font-size: .85rem; margin-top: 2px; }
+.sicklist { list-style: none; margin: 0; padding: 0; }
+.sicklist li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.sicklist li:last-child { border-bottom: 0; }
 .resttiles .label { hyphens: manual; }
 .daytoggle.lfree[aria-pressed="false"] span { text-decoration: none; }
 .restlegend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85rem; color: var(--muted); }
@@ -521,6 +527,12 @@ input::-webkit-date-and-time-value { text-align: left; }
       'Eintrag korrigieren: Datum und Uhrzeiten stehen jetzt oben. Liegt „Bis“ vor „Von“, fragt die App nach, statt still einen Eintrag bis zum nächsten Morgen zu speichern.',
       'Mehrere kleine Fehler behoben, unter anderem rechnet die App am Tag der Zeitumstellung (25.10.) jetzt richtig.',
     ] },
+    { v: 24, items: [
+      'Nach einem Wechsel verschieben „Früher begonnen?“ und „Läuft seit …“ den Wechselzeitpunkt: Die vorige Tätigkeit endet dann automatisch früher.',
+    ] },
+    { v: 25, items: [
+      'Neu unter Achtsamkeit: deine Krankheitstage im Schuljahr, mit Vergleich zum Vorjahr.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -665,6 +677,17 @@ input::-webkit-date-and-time-value { text-align: left; }
   const startFloor = r => { let f = r.start - 16 * 3600000; for (const x of state.entries) if (x.start < r.start && x.end > f) f = Math.min(x.end, r.start); return f; };
   function setStart(t, quiet) {
     const r = state.running; if (!r) return;
+    // Direkt vorher endete eine Tätigkeit (Wechsel oder Start gleich nach Stopp): Wechsel vorverlegen, die vorige endet dann früher
+    const prev = state.entries.filter(x => x.start < r.start && Math.abs(x.end - r.start) < 1000).sort((a, b) => b.start - a.start)[0];
+    if (prev && t < r.start) {
+      const pf = Math.max(prev.start + 60000, ...state.entries.filter(x => x !== prev && x.end <= prev.end && x.end > prev.start).map(x => x.end));
+      const ns = Math.max(pf, Math.min(t, Date.now()));
+      const pn = plain(catById(prev.cat).raw || catById(prev.cat).name);
+      if (ns >= r.start) { if (!quiet) toast(`Früher geht nicht: ${pn} hat erst um ${fmtTime(prev.start)} begonnen.`); return; }
+      prev.end = ns; r.start = ns; if (!r.shiftedFrom) r.shiftedFrom = Date.now(); save(); render();
+      if (!quiet) toast(`Wechsel jetzt um ${fmtTime(ns)}, ${pn} endet entsprechend früher`);
+      return;
+    }
     const floor = startFloor(r), ns = Math.max(floor, Math.min(t, Date.now()));
     if (ns === r.start) { if (!quiet) toast('Früher geht nicht: Davor endet dein letzter Eintrag.'); return; }
     r.start = ns; if (!r.shiftedFrom) r.shiftedFrom = Date.now(); save(); render();
@@ -1717,6 +1740,39 @@ input::-webkit-date-and-time-value { text-align: left; }
     if (workIn(atH(d, 6), atH(d, 30)) < MIN_WORK) return 'free';
     return workIn(atH(d, lim / H), atH(d, 30)) < MIN_WORK ? 'eve' : 'late';
   }
+  // Krankheitstage aus den freien Tagen, pro Schuljahr
+  function offDaysIn(reason, from, to) {
+    const out = [];
+    for (const [k, v] of Object.entries(state.offDays || {})) {
+      if (v !== reason) continue; const [y, m, d] = k.split('-').map(Number); const t = new Date(y, m - 1, d).getTime();
+      if (t >= from && t < to) out.push(t);
+    }
+    return out.sort((a, b) => a - b);
+  }
+  // Zusammenhängende Tage zusammenfassen; ein Wochenende dazwischen unterbricht nicht
+  function dayRuns(days) {
+    const runs = [];
+    for (const d of days) {
+      const l = runs[runs.length - 1];
+      if (l) { let n = addDays(l.b, 1); while ([0, 6].includes(new Date(n).getDay()) && n < d) n = addDays(n, 1); if (n === d) { l.b = d; l.n++; continue; } }
+      runs.push({ a: d, b: d, n: 1 });
+    }
+    return runs;
+  }
+  const runTxt = r => r.n === 1 ? `${WD[new Date(r.a).getDay()]} ${fmtShort(r.a)}` : `${WD[new Date(r.a).getDay()]} ${fmtShort(r.a)} – ${WD[new Date(r.b).getDay()]} ${fmtShort(r.b)}`;
+  function sickPanelHTML() {
+    const now = Date.now(), ys = schoolYearStart(now), ye = schoolYearStart(addDays(ys, 400)), ps = schoolYearStart(addDays(ys, -1));
+    const sick = offDaysIn('krank', ys, ye), prev = offDaysIn('krank', ps, ys);
+    const hadPrev = prev.length || state.entries.some(e => e.start >= ps && e.start < ys);
+    const runs = dayRuns(sick).reverse();
+    return `<section class="panel"><h2>Krankheitstage</h2>
+      <div class="sickhead"><b class="num">${sick.length}</b><span>${sick.length === 1 ? 'Tag' : 'Tage'} in diesem Schuljahr${hadPrev ? `<small>Schuljahr davor: ${prev.length} ${prev.length === 1 ? 'Tag' : 'Tage'}</small>` : ''}</span></div>
+      ${runs.length ? `<ul class="sicklist">${runs.map(r => `<li><span>${runTxt(r)}</span><span class="hint">${r.n} ${r.n === 1 ? 'Tag' : 'Tage'}</span></li>`).join('')}</ul>
+        <p class="goodnote">Gesund werden gehört auch dazu. Gut, dass du dir die Zeit genommen hast.</p>`
+        : '<p class="hint">Bisher keine Krankheitstage in diesem Schuljahr.</p>'}
+      <p class="hint">Eintragen: Auswertung → Woche, Tag antippen und „Krank“ wählen.</p>
+    </section>`;
+  }
   function renderAchtsam() {
     { let first = Infinity; for (const e of state.entries) if (e.start < first) first = e.start;
       const from = Math.min(schoolYearStart(Date.now()), addDays(startOfWeek(Date.now()), -35));
@@ -1753,6 +1809,7 @@ input::-webkit-date-and-time-value { text-align: left; }
       </div>
       <div class="restlegend"><span><i class="rd free"></i>Ganzer Tag frei</span><span><i class="rd eve"></i>Abend frei (ab ${limTxt} Uhr)</span><span><i class="rd late"></i>Abends gearbeitet</span></div>
     </section>`;
+    html += sickPanelHTML();
     html += `<section class="panel"><h2>Meine Grenzen</h2>
       <p class="hint">Leg selbst fest, wann für dich Schluss ist. Startest du danach den Timer, fragt die App freundlich nach. Niemand außer dir sieht das.</p>
       <div class="row"><div class="field" style="flex:0 1 150px"><label class="label" for="lmEve">Feierabend ab</label><input type="time" id="lmEve" value="${L.evening || ''}"></div>
