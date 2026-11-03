@@ -83,7 +83,8 @@ h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; mar
 .earlier .btn { padding: 6px 4px; min-height: 36px; }
 .startedit { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); flex: none; }
-.timer.running .dot { background: var(--chalk); box-shadow: 0 0 0 4px color-mix(in srgb, var(--chalk) 30%, transparent); animation: pulse 1.6s ease-in-out infinite; }
+.timer.running .dot { background: var(--chalk); box-shadow: 0 0 0 4px color-mix(in srgb, var(--chalk) 30%, transparent); position: relative; }
+.timer.running .dot::after { content: ''; position: absolute; inset: -8px; border-radius: 50%; background: radial-gradient(circle, transparent 55%, color-mix(in srgb, var(--chalk) 22%, transparent) 57%); opacity: 0; transform: scale(.75); animation: pulse 1.6s ease-in-out infinite; will-change: transform, opacity; pointer-events: none; }
 @keyframes slideL { from { transform: translateX(28px); opacity: .4; } }
 @keyframes slideR { from { transform: translateX(-28px); opacity: .4; } }
 #view.slideL { animation: slideL .18s ease-out; }
@@ -114,8 +115,8 @@ nav.tabs button { min-width: 0; }
 .restlegend .rd { width: 14px; height: 14px; margin: 0; }
 .restlegend .rd.eve { border-width: 2px; }
 .goodnote { margin: 0; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--good) 12%, var(--surface)); }
-@keyframes pulse { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--chalk) 10%, transparent); } }
-@media (prefers-reduced-motion: reduce) { .timer.running .dot { animation: none; } }
+@keyframes pulse { 50% { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .timer.running .dot::after { animation: none; } }
 
 .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
 .chip { display: flex; align-items: center; gap: 8px; text-align: left; padding: 10px 12px; line-height: 1.2; min-height: 48px; padding-inline: 10px; hyphens: manual; min-width: 0; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-weight: 600; font-size: .95rem; }
@@ -2100,7 +2101,7 @@ input::-webkit-date-and-time-value { text-align: left; }
 
   // Live clock
   setInterval(() => {
-    if (!state.running) return;
+    if (!state.running || document.hidden) return;
     const c = document.getElementById('clock'); if (c) c.textContent = fmtClock(Date.now() - state.running.start);
     const er = document.getElementById('earlierRow'); if (er && Date.now() - (state.running.shiftedFrom || state.running.start) >= EARLIER_WINDOW) er.remove();
     if (view === 'erfassen' && Date.now() % 60000 < 1000) {
@@ -2112,6 +2113,8 @@ input::-webkit-date-and-time-value { text-align: left; }
       const wb = document.getElementById('weekBar'); if (wb) wb.innerHTML = weekBarHTML(ws, wsum);
     }
   }, 1000);
+  // Zurück in die App: Summen sofort aktualisieren (im Hintergrund ruht die Uhr)
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && view === 'erfassen' && !$modal.children.length && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) render(); });
   // Andere Tabs/Fenster: Änderungen übernehmen
   window.addEventListener('storage', ev => { if (ev.key === KEY) { try { state = Object.assign(state, JSON.parse(ev.newValue)); } catch (e) {} render(); } });
 
