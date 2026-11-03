@@ -214,7 +214,13 @@ input[type=text], input[type=date], input[type=time], select { width: 100%; min-
 .weeks td, .weeks th { white-space: nowrap; padding: 8px 4px; border-bottom: 1px solid var(--line); text-align: left; }
 .weeks td:last-child, .weeks th:last-child { text-align: right; }
 .weeks .range { display: block; font-size: .8rem; color: var(--muted); white-space: normal; }
-.notechips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.notechips { display: flex; flex-wrap: nowrap; gap: 6px; margin-top: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+.notechips::-webkit-scrollbar { display: none; }
+.notechips button { flex: 0 0 auto; max-width: 70vw; }
+.morecats { width: 100%; margin-top: 8px; }
+.nowrap { white-space: nowrap; }
+.wbar-txt b { color: var(--ink); font-weight: 600; }
+.addwide { width: 100%; margin: 14px 0 4px; }
 .support { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .support p { margin: 0; color: var(--muted); line-height: 1.45; }
 .support .sig { white-space: nowrap; font-style: italic; }
@@ -534,6 +540,10 @@ input::-webkit-date-and-time-value { text-align: left; }
     { v: 25, items: [
       'Neu unter Achtsamkeit: deine Krankheitstage im Schuljahr, mit Vergleich zum Vorjahr.',
     ] },
+    { v: 26, items: [
+      'Aufgeräumter Startbildschirm: Beim Wechseln stehen deine 6 häufigsten Tätigkeiten oben, die übrigen unter „Weitere Tätigkeiten“.',
+      'Notiz-Vorschläge stehen in einer Zeile zum Wischen, „Heute“ und „Woche“ stehen jetzt ganz oben.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -620,7 +630,8 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
 
   // ---------- Timer actions ----------
-  let noteWarn = false, noteSaveT = 0, noteEdit = false;
+  let noteWarn = false, noteSaveT = 0, noteEdit = false, moreCats = false;
+  const SWITCH_TOP = 6;
   const LONG_RUN = 10 * 3600000;
   // Achtsamkeit: freundlich nachfragen, wenn nach der eigenen Feierabend-Grenze oder an einem freien Tag gestartet wird (einmal pro Tag)
   let limitOkDay = 0;
@@ -712,7 +723,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     const end = r.start + Math.floor((Date.now() - r.start) / 60000) * 60000;
     if (end - r.start >= 60000) state.entries.push({ id: uid(), cat: r.cat, place: r.place, note: r.note, start: r.start, end });
     state.running = { cat, place: r.place, note: '', start: end - r.start >= 60000 ? end : r.start };
-    sel.cat = cat; sel.note = ''; state.lastCat = cat; editStart = false; noteWarn = false; noteEdit = false;
+    sel.cat = cat; sel.note = ''; state.lastCat = cat; editStart = false; noteWarn = false; noteEdit = false; moreCats = false;
     save(); render(); toast(`Gewechselt zu ${catById(cat).name}`);
     if (cat === 'sonstiges') { const n = document.getElementById('runNote'); if (n) n.focus(); }
   }
@@ -724,9 +735,15 @@ input::-webkit-date-and-time-value { text-align: left; }
     const top = list.filter(c => n[c.id]).sort((a, b) => n[b.id] - n[a.id]).slice(0, 3);
     return [...top, ...list.filter(c => !top.includes(c))];
   }
-  function chipsHTML(active, attr) {
+  function chipsHTML(active, attr, top) {
     // ausgeblendete Tätigkeit bleibt sichtbar, solange sie gerade gewählt ist (z. B. alter Eintrag)
-    const list = frequentFirst(activeCats().some(c => c.id === active) ? activeCats() : CATS.filter(c => c.id === active || activeCats().includes(c)));
+    let list = frequentFirst(activeCats().some(c => c.id === active) ? activeCats() : CATS.filter(c => c.id === active || activeCats().includes(c)));
+    // Beim Wechseln: nur die häufigsten zeigen, Rest hinter „Weitere“ (laufende Tätigkeit immer dabei)
+    if (top && !moreCats && list.length > top + 1) {
+      const shown = list.slice(0, top); if (active && !shown.some(c => c.id === active)) shown[top - 1] = list.find(c => c.id === active) || shown[top - 1];
+      const rest = list.length - shown.length;
+      return `<div class="chips">${shown.map(c => `<button class="chip" ${attr}="${c.id}" aria-pressed="${c.id === active}"><span class="sw" style="background:${c.color}"></span>${c.name}</button>`).join('')}</div><button type="button" class="btn morecats" id="moreCats">Weitere Tätigkeiten (${rest})</button>`;
+    }
     return `<div class="chips">${list.map(c => `<button class="chip" ${attr}="${c.id}" aria-pressed="${c.id === active}"><span class="sw" style="background:${c.color}"></span>${c.name}</button>`).join('')}</div>`;
   }
   function placeHTML(active, attr) {
@@ -739,7 +756,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     const todaySum = sumRange(today, addDays(today, 1)).total;
     const ws = startOfWeek(Date.now());
     const weekSum = sumRange(ws, addDays(ws, 7)).total;
-    let html = `<div class="wtop" id="weekBar">${weekBarHTML(ws, weekSum)}</div>`;
+    let html = `<div class="wtop" id="weekBar">${weekBarHTML(ws, weekSum, todaySum)}</div>`;
     // Läuft der Timer ungewöhnlich lange oder seit gestern, nachfragen
     if (r && (Date.now() - r.start > LONG_RUN || startOfDay(r.start) < today) && !(r.okUntil && Date.now() < r.okUntil)) {
       const sug = Math.min(r.start + 4 * 3600000, Date.now());
@@ -759,7 +776,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         ${r.note && !noteEdit ? `<button type="button" class="notedone" id="noteEditBtn"><span>Notiz: <b>${esc(r.note)}</b></span><span class="edit">ändern</span></button>` : `<div class="field" style="flex:none"><label class="label" for="runNote">Notiz ${r.cat === 'sonstiges' ? '(worum geht es?)' : '(optional)'}</label><div class="noterow"><input type="text" id="runNote" enterkeyhint="done" placeholder="${r.cat === 'sonstiges' ? 'Worum geht es?' : 'z. B. 9b Mathe'}" value="${esc(r.note || '')}"><button type="button" class="btn primary" id="runNoteOk" aria-label="Notiz übernehmen">✓</button></div>${noteChipsHTML(r.cat, 'data-runnote')}</div>`}
         <div class="startbar stopbar"><button class="btn big stop" id="stopBtn">Stopp</button></div>
         <span class="label">Direkt wechseln zu</span>
-        ${chipsHTML(r.cat, 'data-switch')}`;
+        ${chipsHTML(r.cat, 'data-switch', SWITCH_TOP)}`;
     } else {
       html += `<div class="state"><span class="dot"></span><span>Keine Zeit läuft</span></div>
         <div class="clock">00:00:00</div>
@@ -770,10 +787,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         <div class="startbar">${placeHTML(sel.place, 'data-place')}<button class="btn big primary" id="startBtn">Start</button></div>`;
     }
     html += `</section>
-      <section class="panel">
-        <div class="split"><span>Heute <b id="sumToday">${fmtDur(todaySum)} h</b></span><span>Diese Woche <b id="sumWeek">${fmtDur(weekSum)} h</b></span></div>
-        <button class="btn" id="addBtn">Zeit nachtragen</button>
-      </section>`;
+      <button class="btn addwide" id="addBtn">Zeit nachtragen</button>`;
     const todays = state.entries.filter(e => e.start >= today).sort((a, b) => b.start - a.start);
     if (todays.length) html += `<section class="day"><div class="day-head"><strong>Heute erfasst</strong><span class="hint">Antippen zum Korrigieren</span></div>${todays.map(entryHTML).join('')}</section>`;
     // Hinweise oben, damit sie auf dem Handy sofort sichtbar sind
@@ -789,6 +803,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     $view.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { sel.cat = b.dataset.cat; noteWarn = false; render(); });
     $view.querySelectorAll('[data-place]').forEach(b => b.onclick = () => { sel.place = b.dataset.place; render(); });
     $view.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => switchTo(b.dataset.switch));
+    { const m = document.getElementById('moreCats'); if (m) m.onclick = () => { moreCats = true; render(); }; }
     const note = document.getElementById('noteIn'); if (note) note.oninput = () => sel.note = note.value;
     // Notiz zum laufenden Timer (bei Sonstiges): Zeit läuft schon, Notiz kann nebenher eingetragen werden
     const rnt = document.getElementById('runNote');
@@ -987,12 +1002,13 @@ input::-webkit-date-and-time-value { text-align: left; }
     for (let i = 0; i < 5; i++) { const d = addDays(ws, i); if (d >= startOfDay(since) && !isOff(d) && !isHoliday(d)) n++; }
     return n * dailySoll();
   }
-  function weekBarHTML(ws, ist) {
-    if (isHoliday(ws)) return `<p class="hint wbar-txt">Ferienwoche, kein Soll. Alles zählt als Plus.</p>`;
-    const soll = weekSollFull(ws); if (!soll) return '';
+  function weekBarHTML(ws, ist, day) {
+    const td = `<span class="nowrap">Heute <b>${fmtDur(day)} h</b></span> · `;
+    if (isHoliday(ws)) return `<p class="hint wbar-txt">${td}<span class="nowrap">Woche <b>${fmtDur(ist)} h</b></span> · Ferienwoche, kein Soll</p>`;
+    const soll = weekSollFull(ws); if (!soll) return `<p class="hint wbar-txt">${td}<span class="nowrap">Woche <b>${fmtDur(ist)} h</b></span></p>`;
     const pct = Math.min(100, ist / soll * 100), rest = soll - ist;
     return `<div class="wbar" role="img" aria-label="${fmtDur(ist)} von ${fmtDur(soll)} Stunden Wochensoll"><i style="width:${pct}%"></i></div>
-      <p class="hint wbar-txt">${fmtDur(ist)} von ${fmtDur(soll)} h Wochensoll · ${rest > 0 ? `noch ${fmtDur(rest)} h` : `<b class="saldo plus">${fmtSigned(-rest)} h</b>`}</p>`;
+      <p class="hint wbar-txt">${td}<span class="nowrap">Woche <b>${fmtDur(ist)}</b> von ${fmtDur(soll)} h</span> · ${rest > 0 ? `<span class="nowrap">noch ${fmtDur(rest)} h</span>` : `<b class="saldo plus">${fmtSigned(-rest)} h</b>`}</p>`;
   }
   function toggleHoliday(mondayKey) {
     state.holidayWeeks = state.holidayWeeks || {};
@@ -2106,11 +2122,8 @@ input::-webkit-date-and-time-value { text-align: left; }
     const er = document.getElementById('earlierRow'); if (er && Date.now() - (state.running.shiftedFrom || state.running.start) >= EARLIER_WINDOW) er.remove();
     if (view === 'erfassen' && Date.now() % 60000 < 1000) {
       const t = startOfDay(Date.now()), ws = startOfWeek(Date.now());
-      const a = document.getElementById('sumToday'), b = document.getElementById('sumWeek');
-      if (a) a.textContent = fmtDur(sumRange(t, addDays(t, 1)).total) + ' h';
       const wsum = sumRange(ws, addDays(ws, 7)).total;
-      if (b) b.textContent = fmtDur(wsum) + ' h';
-      const wb = document.getElementById('weekBar'); if (wb) wb.innerHTML = weekBarHTML(ws, wsum);
+      const wb = document.getElementById('weekBar'); if (wb) wb.innerHTML = weekBarHTML(ws, wsum, sumRange(t, addDays(t, 1)).total);
     }
   }, 1000);
   // Zurück in die App: Summen sofort aktualisieren (im Hintergrund ruht die Uhr)
