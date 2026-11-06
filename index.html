@@ -376,18 +376,23 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
   // Bis Okt. 2026 war 1886 h voreingestellt; bestehende Installationen behalten ihr bisheriges Soll
   if (state.entries.length && !(state.settings && state.settings.yearly)) { state.settings = Object.assign({}, state.settings, { yearly: 1886 }); save(); }
-  // Stundenplan fürs Nachtragen: state.timetable = { '1': [[465, 560], …] } (Wochentag 1–5, Minuten ab Mitternacht)
+  // Stundenplan: state.timetable = { '1': [[465, 560], [720, 810, 'lernzeit'], …] } (Wochentag 1–5, Minuten ab Mitternacht, optional Tätigkeit; ohne = Unterricht)
   const TT_DAYS = [[1, 'Montag'], [2, 'Dienstag'], [3, 'Mittwoch'], [4, 'Donnerstag'], [5, 'Freitag']];
   const fmtMin = m => `${Math.floor(m / 60)}:${pad(m % 60)}`;
-  const ttText = blocks => (blocks || []).map(([a, b]) => `${fmtMin(a)}–${fmtMin(b)}`).join(', ');
-  function parseBlocks(txt) {
+  const ttCat = blk => blk[2] || 'unterricht';
+  const ttText = blocks => (blocks || []).map(([a, b, c]) => `${fmtMin(a)}–${fmtMin(b)}${c && c !== 'unterricht' ? ' ' + plain(catById(c).raw || catById(c).name) : ''}`).join(', ');
+  // Tätigkeit aus Text (Name oder Anfang davon, ohne Groß/Klein, Bindestriche, Leerzeichen)
+  const catFromText = txt => { const n = x => plain(x).toLowerCase().replace(/[^a-zäöüß]/g, ''); const t = n(txt); if (!t) return null;
+    const l = CATS.filter(c => !c.deleted); return (l.find(c => n(c.raw || c.name) === t) || l.find(c => n(c.raw || c.name).startsWith(t)) || {}).id || null; };
+  function parseBlocks(txt, withCat) {
     const out = [];
     for (const part of txt.split(/[,;]/).map(x => x.trim()).filter(Boolean)) {
-      const m = part.match(/^(\d{1,2})[:.](\d{2})\s*(?:-|–|—|bis)\s*(\d{1,2})[:.](\d{2})(?:\s*Uhr)?$/i);
-      if (!m) return null;
+      const m = part.match(/^(\d{1,2})[:.](\d{2})\s*(?:-|–|—|bis)\s*(\d{1,2})[:.](\d{2})(?:\s*Uhr)?(?:\s+(.+))?$/i);
+      if (!m || (m[5] && !withCat)) return null;
       const a = +m[1] * 60 + +m[2], b = +m[3] * 60 + +m[4];
       if (+m[1] > 23 || +m[3] > 23 || +m[2] > 59 || +m[4] > 59 || b <= a) return null;
-      out.push([a, b]);
+      if (m[5]) { const c = catFromText(m[5]); if (!c) { parseBlocks.badCat = m[5].trim(); return null; } out.push(c === 'unterricht' ? [a, b] : [a, b, c]); }
+      else out.push([a, b]);
     }
     return out.sort((x, y) => x[0] - y[0]);
   }
@@ -544,6 +549,13 @@ input::-webkit-date-and-time-value { text-align: left; }
       'Aufgeräumter Startbildschirm: Beim Wechseln stehen deine 6 häufigsten Tätigkeiten oben, die übrigen unter „Weitere Tätigkeiten“.',
       'Notiz-Vorschläge stehen in einer Zeile zum Wischen, „Heute“ und „Woche“ stehen jetzt ganz oben.',
     ] },
+    { v: 27, items: [
+      'Der Ort neben „Start“ richtet sich jetzt nach deiner Kernarbeitszeit bzw. deinem Stundenplan: währenddessen „Schule“, sonst „Zuhause“. Selbst umgeschaltet gilt bis zum nächsten Stopp.',
+    ] },
+    { v: 28, items: [
+      'Im Stundenplan kannst du hinter einen Block eine Tätigkeit schreiben, z. B. „12:00–13:30 Lernzeit“.',
+      'Neu in den Einstellungen: „Automatisch starten nach Stundenplan“. Zu Beginn jedes Blocks läuft die Zeit mit der passenden Tätigkeit, auch wenn du vergessen hast zu starten oder zwischendurch gewechselt hast. Anfangs ausgeschaltet.',
+    ] },
   ];
   const APP_V = CHANGES[CHANGES.length - 1].v;
   if (state.seenV == null) { state.seenV = state.entries.length ? 0 : APP_V; save(); }
@@ -613,8 +625,18 @@ input::-webkit-date-and-time-value { text-align: left; }
   const nowBtn = (cur, label) => cur ? '' : `<button class="btn ghost nowbtn" data-now>${label}</button>`;
   let yearAnchor = Date.now();
   // Ort vorbelegen: Mo–Fr Schule, Sa/So und Ferienwochen Zuhause (von Hand umschaltbar); gesetzt beim ersten render()
-  const placeFor = t => [0, 6].includes(new Date(t).getDay()) || isHoliday(t) ? 'zuhause' : 'schule';
-  let sel = { cat: firstActive(state.lastCat), place: 'schule', placeDay: 0, note: '' };
+  // Ort-Vorschlag: Wochenende, Ferien, freie Tage → Zuhause. Sonst, wenn Kernzeit oder Stundenplan eingetragen sind:
+  // Schule nur innerhalb davon, sonst Zuhause. Ohne beides werktags Schule.
+  const placeFor = t => {
+    if ([0, 6].includes(new Date(t).getDay()) || isHoliday(t) || (state.offDays && state.offDays[keyOf(t)])) return 'zuhause';
+    const hasPlan = o => o && Object.values(o).some(l => l && l.length);
+    if (!hasPlan(state.timetable) && !hasPlan(state.coreHours)) return 'schule';
+    const d = new Date(t), m = d.getHours() * 60 + d.getMinutes();
+    // Stundenplan: vom Beginn der ersten bis zum Ende der letzten Stunde (Pausen zählen mit)
+    const tt = ttFor(t), span = tt.length ? [[Math.min(...tt.map(x => x[0])), Math.max(...tt.map(x => x[1]))]] : [];
+    return [...span, ...coreFor(t)].some(([a, b]) => m >= a && m < b) ? 'schule' : 'zuhause';
+  };
+  let sel = { cat: firstActive(state.lastCat), place: 'schule', placeDay: 0, placeManual: false, note: '' };
   const $view = document.getElementById('view');
   const $modal = document.getElementById('modalRoot');
 
@@ -675,6 +697,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
   // Beim Stoppen auf volle Minuten runden: bis 29 s ab, ab 30 s auf
   function stopTimer(silent) {
+    sel.placeManual = false;
     const r = state.running; if (!r) return;
     const end = r.start + Math.max(0, Math.round((Date.now() - r.start) / 60000)) * 60000;
     if (end - r.start >= 60000) { state.entries.push({ id: uid(), cat: r.cat, place: r.place, note: r.note, start: r.start, end }); if (!silent) toast(`Gespeichert: ${catById(r.cat).name}, ${fmtDur(end - r.start)} h`); }
@@ -726,6 +749,38 @@ input::-webkit-date-and-time-value { text-align: left; }
     sel.cat = cat; sel.note = ''; state.lastCat = cat; editStart = false; noteWarn = false; noteEdit = false; moreCats = false;
     save(); render(); toast(`Gewechselt zu ${catById(cat).name}`);
     if (cat === 'sonstiges') { const n = document.getElementById('runNote'); if (n) n.focus(); }
+  }
+
+  // Automatisch nach Stundenplan: zu Beginn jedes Blocks (heute) die Tätigkeit des Blocks laufen lassen.
+  // Holt verpasste Blockanfänge beim Öffnen nach. Ein Blockanfang wird nur einmal angewendet (state.ttAuto.last).
+  // Gibt true zurück, wenn sich etwas geändert hat.
+  function autoTT() {
+    if (!state.ttAutoOn || !state.timetable) return false;
+    const now = Date.now(), day = startOfDay(now), key = keyOf(now);
+    if ([0, 6].includes(new Date(now).getDay()) || isHoliday(now) || (state.offDays && state.offDays[key])) return false;
+    if (!state.ttAuto || state.ttAuto.day !== key) state.ttAuto = { day: key, last: -1 };
+    const due = ttFor(now).filter(b => b[0] > state.ttAuto.last && atH(day, b[0] / 60) <= now).sort((x, y) => x[0] - y[0]);
+    if (!due.length) return false;
+    let changed = false, msg = '';
+    for (const blk of due) {
+      const S = atH(day, blk[0] / 60), cat = ttCat(blk), r = state.running;
+      state.ttAuto.last = blk[0];
+      if (r) {
+        // Selbst nach Blockbeginn gestartet/gewechselt oder schon die richtige Tätigkeit: nichts tun
+        if (r.cat === cat || r.start >= S) continue;
+        state.entries.push({ id: uid(), cat: r.cat, place: r.place, note: r.note, start: r.start, end: S });
+        state.running = { cat, place: 'schule', note: '', start: S, auto: true };
+      } else {
+        // Nach Blockbeginn schon etwas erfasst (z. B. gestoppt): nicht wieder anfangen
+        if (state.entries.some(x => x.end > S)) continue;
+        state.running = { cat, place: 'schule', note: '', start: S, auto: true };
+      }
+      sel.cat = cat; state.lastCat = cat; noteEdit = false; moreCats = false; changed = true;
+      msg = `Laut Stundenplan: ${plain(catById(cat).raw || catById(cat).name)} seit ${fmtTime(S)}`;
+    }
+    save();
+    if (changed) setTimeout(() => toast(msg), 0);
+    return changed;
   }
 
   // ---------- Views ----------
@@ -801,7 +856,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     $view.innerHTML = html;
 
     $view.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { sel.cat = b.dataset.cat; noteWarn = false; render(); });
-    $view.querySelectorAll('[data-place]').forEach(b => b.onclick = () => { sel.place = b.dataset.place; render(); });
+    $view.querySelectorAll('[data-place]').forEach(b => b.onclick = () => { sel.place = b.dataset.place; sel.placeManual = true; render(); });
     $view.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => switchTo(b.dataset.switch));
     { const m = document.getElementById('moreCats'); if (m) m.onclick = () => { moreCats = true; render(); }; }
     const note = document.getElementById('noteIn'); if (note) note.oninput = () => sel.note = note.value;
@@ -1243,9 +1298,11 @@ input::-webkit-date-and-time-value { text-align: left; }
       <p class="hint">Wähle mindestens ${MIN_CATS} aus. Abgewählte Tätigkeiten verschwinden aus der Auswahl beim Erfassen; bereits erfasste Zeiten bleiben erhalten.</p>
       <span class="label">Eigene Tätigkeiten (höchstens ${MAX_OWN})</span>
       <div id="stOwn"></div>
-      <span class="label">Mein Stundenplan (nur fürs Nachtragen)</span>
-      <p class="hint">Freiwillig. Trag deine Unterrichtszeiten ein, z. B. „7:45–13:05“ oder mit Freistunde „7:45–9:20, 10:05–13:05“. Beim Nachtragen eines Tages kannst du sie dann mit einem Tipp einfügen und danach jeden Block noch ändern.</p>
-      ${TT_DAYS.map(([d, n]) => `<div class="field"><label class="label" for="stTT${d}">${n}</label><input type="text" id="stTT${d}" value="${ttText(state.timetable && state.timetable[d])}" placeholder="z. B. 7:45–13:05"></div>`).join('')}
+      <span class="label">Mein Stundenplan</span>
+      <p class="hint">Freiwillig. Trag deine Unterrichtszeiten ein, z. B. „7:45–13:05“ oder mit Freistunde „7:45–9:20, 10:05–13:05“. Ist ein Block keine Unterrichtszeit, schreib die Tätigkeit dahinter, z. B. „12:00–13:30 Lernzeit“. Beim Nachtragen kannst du den Stundenplan mit einem Tipp einfügen.</p>
+      <label class="row" style="gap:8px;align-items:center"><input type="checkbox" id="stAutoTT" ${state.ttAutoOn ? 'checked' : ''}> Automatisch starten nach Stundenplan</label>
+      <p class="hint">Zu Beginn jedes Blocks läuft die Zeit mit der passenden Tätigkeit, auch wenn du vergessen hast zu starten oder zwischendurch gewechselt hast. Ist die App zu, holt sie das beim nächsten Öffnen nach. Nicht an freien Tagen und in den Ferien.</p>
+      ${TT_DAYS.map(([d, n]) => `<div class="field"><label class="label" for="stTT${d}">${n}</label><input type="text" id="stTT${d}" value="${esc(ttText(state.timetable && state.timetable[d]))}" placeholder="z. B. 7:45–13:05"></div>`).join('')}
       <span class="label">Meine Kernarbeitszeit</span>
       <p class="hint">Freiwillig. Die Zeit, in der du normalerweise arbeitest, z. B. „7:30–16:00“. Sie erscheint in der Wochenauswertung als grauer Hintergrund im Tagesverlauf.</p>
       ${TT_DAYS.map(([d, n]) => `<div class="field"><label class="label" for="stCore${d}">${n}</label><input type="text" id="stCore${d}" value="${ttText(state.coreHours && state.coreHours[d])}" placeholder="z. B. 7:30–16:00"></div>`).join('')}
@@ -1311,8 +1368,8 @@ input::-webkit-date-and-time-value { text-align: left; }
       if (!ys || +ys[1] < 1 || +ys[1] > 31 || +ys[2] < 1 || +ys[2] > 12) return fail('Bitte den Schuljahresbeginn als Tag.Monat eingeben, z. B. 01.08.');
       const tt = {};
       for (const [d, n] of TT_DAYS) {
-        const b = parseBlocks(document.getElementById('stTT' + d).value);
-        if (!b) return fail(`Stundenplan ${n}: bitte Zeiten wie „7:45–13:05“ eingeben, mehrere mit Komma getrennt.`);
+        parseBlocks.badCat = null; const b = parseBlocks(document.getElementById('stTT' + d).value, true);
+        if (!b) return fail(parseBlocks.badCat ? `Stundenplan ${n}: Die Tätigkeit „${parseBlocks.badCat}“ kenne ich nicht. Bitte so schreiben wie in der Liste, z. B. „Lernzeit“.` : `Stundenplan ${n}: bitte Zeiten wie „7:45–13:05“ eingeben, mehrere mit Komma getrennt.`);
         if (b.length) tt[d] = b;
       }
       const ch = {};
@@ -1322,6 +1379,10 @@ input::-webkit-date-and-time-value { text-align: left; }
         if (b.length) ch[d] = b;
       }
       state.timetable = Object.keys(tt).length ? tt : null;
+      { const on = document.getElementById('stAutoTT').checked && !!state.timetable;
+        // Beim Einschalten nichts vom heutigen Tag rückwirkend nachholen
+        if (on && !state.ttAutoOn) { const n = new Date(); state.ttAuto = { day: keyOf(Date.now()), last: n.getHours() * 60 + n.getMinutes() }; }
+        state.ttAutoOn = on; }
       state.coreHours = Object.keys(ch).length ? ch : null;
       state.settings = { yearly: y, weeks: w, pct: p, since: since || null, yearStart: `${pad(+ys[2])}-${pad(+ys[1])}` };
       const nm = document.getElementById('stName').value.trim(); if (nm) state.settings.name = nm.slice(0, 80);
@@ -1611,7 +1672,7 @@ input::-webkit-date-and-time-value { text-align: left; }
         </div>
         <span class="label">Tätigkeit</span>${catOpen ? chipsHTML(cat, 'data-ecat') : `<button type="button" class="notedone" id="edCatOpen"><span><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;background:${catById(cat).color}"></span><b>${catById(cat).name}</b></span><span class="edit">ändern</span></button>`}
         <span class="label">Ort</span>${placeHTML(place, 'data-eplace')}
-        ${isNew && ttDay().length ? `<div class="ttbox"><button class="btn" id="edTT">Unterricht laut Stundenplan einfügen</button><span class="hint">${ttText(ttDay())} · ${PLACES.schule}</span></div>` : ''}
+        ${isNew && ttDay().length ? `<div class="ttbox"><button class="btn" id="edTT">Stundenplan einfügen</button><span class="hint">${esc(ttText(ttDay()))} · ${PLACES.schule}</span></div>` : ''}
         <div class="field"><label class="label" for="edNote">Notiz</label><input type="text" id="edNote" value="${esc(e.note)}">${noteChipsHTML(cat, 'data-enote')}</div>
         ${err ? `<p class="warn">${err}</p>` : ''}
         ${confirmDel ? `<p class="warn">Diesen Eintrag wirklich löschen?</p>` : ''}
@@ -1628,17 +1689,17 @@ input::-webkit-date-and-time-value { text-align: left; }
       document.getElementById('ov').onclick = ev => { if (ev.target.id === 'ov') close(); };
       document.getElementById('edDate').onchange = () => {
         keep();
-        if (isNew && e._d) { const [y, mo, da] = e._d.split('-').map(Number); const t = new Date(y, mo - 1, da).getTime(), [a, b] = suggest(t); e._f = fmtTime(a); e._t = fmtTime(b); if (!placeSet) place = placeFor(t); }
+        if (isNew && e._d) { const [y, mo, da] = e._d.split('-').map(Number); const t = new Date(y, mo - 1, da).getTime(), [a, b] = suggest(t); e._f = fmtTime(a); e._t = fmtTime(b); if (!placeSet) place = placeFor(a); }
         redraw();
       };
       const ttb = document.getElementById('edTT'); if (ttb) ttb.onclick = () => {
         keep(); const day = dayTs();
         const blocks = ttDay().filter(([a, b]) => !state.entries.some(x => x.start < atH(day, b / 60) && x.end > atH(day, a / 60)));
         if (!blocks.length) return draw('Zu diesen Zeiten ist an dem Tag schon etwas erfasst. Bitte die Einträge unter „Einträge“ prüfen.');
-        for (const [a, b] of blocks) state.entries.push({ id: uid(), cat: 'unterricht', place: 'schule', note: '', start: atH(day, a / 60), end: atH(day, b / 60) });
+        for (const blk of blocks) state.entries.push({ id: uid(), cat: ttCat(blk), place: 'schule', note: '', start: atH(day, blk[0] / 60), end: atH(day, blk[1] / 60) });
         save(); render();
         const skipped = ttDay().length - blocks.length;
-        toast(`${blocks.length} ${blocks.length > 1 ? 'Unterrichtsblöcke' : 'Unterrichtsblock'} eingefügt${skipped ? `, ${skipped} übersprungen (schon belegt)` : ''}. Antippen zum Ändern.`);
+        toast(`${blocks.length} ${blocks.length > 1 ? 'Blöcke' : 'Block'} aus dem Stundenplan eingefügt${skipped ? `, ${skipped} übersprungen (schon belegt)` : ''}. Antippen zum Ändern.`);
         askGaps(day);
       };
       const del = document.getElementById('edDel'); if (del) del.onclick = () => { keep(); confirmDel = true; redraw(); };
@@ -1651,8 +1712,11 @@ input::-webkit-date-and-time-value { text-align: left; }
         const d = document.getElementById('edDate').value, f = document.getElementById('edFrom').value, t = document.getElementById('edTo').value;
         if (!d || !f || !t) return draw('Bitte Datum, Beginn und Ende ausfüllen.');
         const [y, mo, da] = d.split('-').map(Number), [fh, fm] = f.split(':').map(Number), [th, tm] = t.split(':').map(Number);
-        const start = new Date(y, mo - 1, da, fh, fm).getTime();
+        let start = new Date(y, mo - 1, da, fh, fm).getTime();
         let end = new Date(y, mo - 1, da, th, tm).getTime();
+        // Unveränderte Minute: genaue Originalzeit behalten (Einträge können Sekunden haben, z. B. nach einem Wechsel)
+        const minOf = x => Math.floor(x / 60000) * 60000;
+        if (!isNew && minOf(entry.start) === start) start = entry.start;
         if (end <= start) {
           end = addDays(end, 1); // über Mitternacht
           // Längere Nacht-Einträge sind meist ein Tippfehler bei „Bis“: einmal nachfragen
@@ -1661,10 +1725,11 @@ input::-webkit-date-and-time-value { text-align: left; }
             return draw(`„Bis“ liegt vor „Von“. Der Eintrag würde also erst am nächsten Tag um ${fmtTime(end)} enden (${fmtDur(end - start)} h). Bitte „Bis“ prüfen oder nochmal „Speichern“ tippen, wenn das so stimmt.`);
           }
         }
+        if (!isNew && minOf(entry.end) === end) end = entry.end;
         if (end - start > 16 * 3600000) return draw('Ein Eintrag darf höchstens 16 Stunden lang sein. Bitte Beginn und Ende prüfen.');
         if (cat === 'sonstiges' && !document.getElementById('edNote').value.trim() && !noteAsked) { noteAsked = true; e.note = ''; e._d = d; e._f = f; e._t = t; return draw('Bei „Sonstiges“ bitte kurz notieren, worum es geht. Nochmal „Speichern“ tippen, um ohne Notiz zu speichern.'); }
         const r = state.running, live = r ? [{ cat: r.cat, start: r.start, end: Math.max(Date.now(), r.start + 60000) }] : [];
-        const clash = [...state.entries.filter(x => x !== entry), ...live].filter(x => x.start < end && x.end > start).sort((a, b) => a.start - b.start);
+        const clash = [...state.entries.filter(x => x !== entry), ...live].filter(x => Math.min(x.end, end) - Math.max(x.start, start) >= 60000).sort((a, b) => a.start - b.start);
         if (clash.length && overlapKey !== `${start}-${end}`) {
           overlapKey = `${start}-${end}`; e.note = document.getElementById('edNote').value; e._d = d; e._f = f; e._t = t;
           const names = clash.slice(0, 2).map(x => `${plain(catById(x.cat).raw || catById(x.cat).name)} ${fmtTime(x.start)}–${fmtTime(x.end)}`).join(' und ') + (clash.length > 2 ? ` und ${clash.length - 2} weitere` : '');
@@ -1859,7 +1924,9 @@ input::-webkit-date-and-time-value { text-align: left; }
   }
   function render() {
     refreshCats();
-    if (startOfDay(Date.now()) !== sel.placeDay) { sel.place = placeFor(Date.now()); sel.placeDay = startOfDay(Date.now()); }
+    autoTT();
+    // Ort-Vorschlag bei jedem Anzeigen neu, solange keine Zeit läuft und nicht selbst umgeschaltet wurde (gilt bis zum nächsten Stopp/Öffnen)
+    if (!state.running && (!sel.placeManual || startOfDay(Date.now()) !== sel.placeDay)) { sel.place = placeFor(Date.now()); sel.placeDay = startOfDay(Date.now()); sel.placeManual = false; }
     const d = new Date(); const { week } = isoWeek(d);
     document.getElementById('todayLabel').textContent = `${fmtDay(d)} · KW ${week}`;
     if (view === 'erfassen') renderErfassen(); else if (view === 'eintraege') renderEintraege(); else if (view === 'achtsam') renderAchtsam(); else renderAuswertung();
@@ -1903,7 +1970,7 @@ input::-webkit-date-and-time-value { text-align: left; }
   // Ablage: data/users/<id>/meta (Einstellungen, Ferien, laufender Timer) und data/users/<id>/m-JJJJ-MM (Einträge des Monats).
   // Gelöschte Einträge bleiben als {deleted:true} stehen, damit andere Geräte sie ebenfalls entfernen.
   if (state.paused) { delete state.paused; }
-  const META_KEYS = ['settings', 'offDays', 'holidayWeeks', 'presets', 'running', 'lastCat', 'lastPlace', 'timetable', 'customCats', 'coreHours', 'limits'];
+  const META_KEYS = ['settings', 'offDays', 'holidayWeeks', 'presets', 'running', 'lastCat', 'lastPlace', 'timetable', 'customCats', 'coreHours', 'limits', 'ttAutoOn', 'ttAuto'];
   const metaOf = () => { const m = {}; for (const k of META_KEYS) m[k] = state[k] === undefined ? null : state[k]; return m; };
   const canon = v => v === null || typeof v !== 'object' ? JSON.stringify(v) : Array.isArray(v) ? '[' + v.map(canon).join(',') + ']' : '{' + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
   const monthKey = t => { const d = new Date(t); return `m-${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
@@ -2117,7 +2184,9 @@ input::-webkit-date-and-time-value { text-align: left; }
 
   // Live clock
   setInterval(() => {
-    if (!state.running || document.hidden) return;
+    if (document.hidden) return;
+    if (Date.now() % 60000 < 1000 && autoTT()) { render(); return; }
+    if (!state.running) return;
     const c = document.getElementById('clock'); if (c) c.textContent = fmtClock(Date.now() - state.running.start);
     const er = document.getElementById('earlierRow'); if (er && Date.now() - (state.running.shiftedFrom || state.running.start) >= EARLIER_WINDOW) er.remove();
     if (view === 'erfassen' && Date.now() % 60000 < 1000) {
@@ -2127,7 +2196,7 @@ input::-webkit-date-and-time-value { text-align: left; }
     }
   }, 1000);
   // Zurück in die App: Summen sofort aktualisieren (im Hintergrund ruht die Uhr)
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && view === 'erfassen' && !$modal.children.length && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) render(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) sel.placeManual = false; if (!document.hidden && view === 'erfassen' && !$modal.children.length && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) render(); });
   // Andere Tabs/Fenster: Änderungen übernehmen
   window.addEventListener('storage', ev => { if (ev.key === KEY) { try { state = Object.assign(state, JSON.parse(ev.newValue)); } catch (e) {} render(); } });
 
